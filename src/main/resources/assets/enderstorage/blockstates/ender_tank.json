@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": {"model": "enderstorage:block/ender_tank"},
+    "facing=south": {"model": "enderstorage:block/ender_tank"},
+    "facing=west": {"model": "enderstorage:block/ender_tank"},
+    "facing=east": {"model": "enderstorage:block/ender_tank"}
+  }
+}

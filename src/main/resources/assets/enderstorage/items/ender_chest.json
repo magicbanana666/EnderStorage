@@ -1,0 +1,9 @@
+{
+  "model": {
+    "type": "minecraft:special",
+    "base": "enderstorage:item/ender_chest",
+    "model": {
+      "type": "enderstorage:ender_chest"
+    }
+  }
+}

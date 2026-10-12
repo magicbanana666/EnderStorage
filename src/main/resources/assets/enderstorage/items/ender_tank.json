@@ -1,0 +1,9 @@
+{
+  "model": {
+    "type": "minecraft:special",
+    "base": "enderstorage:item/ender_tank",
+    "model": {
+      "type": "enderstorage:ender_tank"
+    }
+  }
+}

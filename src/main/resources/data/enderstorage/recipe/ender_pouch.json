@@ -1,0 +1,18 @@
+{
+  "type": "enderstorage:create_recipe",
+  "key": {
+    "B": "minecraft:blaze_powder",
+    "L": "#c:leathers",
+    "P": "#c:ender_pearls",
+    "W": "#minecraft:wool"
+  },
+  "pattern": [
+    "BLB",
+    "LPL",
+    "BWB"
+  ],
+  "result": {
+    "count": 1,
+    "id": "enderstorage:ender_pouch"
+  }
+}

@@ -1,0 +1,26 @@
+modLoader="javafml"
+loaderVersion="[1,)"
+license="Don't Be an Asshole License (textures and models: MIT, see the licenses folder in the source)"
+issueTrackerURL="https://github.com/magicbanana666/EnderStorage/issues"
+
+[[mods]]
+modId="${mod_id}"
+displayName="${mod_display_name}"
+version="${mod_version}"
+authors="magicbanana666"
+displayURL="https://github.com/magicbanana666/EnderStorage"
+description='''Ender chests, tanks and pouches that share their contents with everything that has the same three colours. One jar, no dependencies.'''
+
+[[dependencies.${mod_id}]]
+    modId="neoforge"
+    type="required"
+    versionRange="[${neoforge_version},)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.${mod_id}]]
+    modId="minecraft"
+    type="required"
+    versionRange="[${minecraft_version}]"
+    ordering="NONE"
+    side="BOTH"
