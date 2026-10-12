@@ -8,6 +8,7 @@ import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.RegisterConditionalItemModelPropertyEvent;
+import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import net.neoforged.neoforge.client.event.RegisterSelectItemModelPropertyEvent;
 import net.neoforged.neoforge.client.event.RegisterSpecialModelRendererEvent;
 import net.neoforged.neoforge.client.gui.ConfigurationScreen;
@@ -18,6 +19,10 @@ public final class EnderStorageClient {
 
     public EnderStorageClient(IEventBus modBus, ModContainer container) {
         container.registerExtensionPoint(IConfigScreenFactory.class, ConfigurationScreen::new);
+        modBus.addListener(RegisterMenuScreensEvent.class, event -> {
+            event.register(EnderStorage.ENDER_CHEST_MENU.get(), EnderChestScreen::new);
+            event.register(EnderStorage.ENDER_TANK_MENU.get(), EnderTankScreen::new);
+        });
         modBus.addListener(EntityRenderersEvent.RegisterRenderers.class, event -> {
             event.registerBlockEntityRenderer(EnderStorage.ENDER_CHEST_BE.get(), EnderChestRenderer::new);
             event.registerBlockEntityRenderer(EnderStorage.ENDER_TANK_BE.get(), EnderTankRenderer::new);

@@ -5,6 +5,7 @@ import java.util.List;
 
 import com.magicbanana666.enderstorage.EnderStorageConfig;
 import com.magicbanana666.enderstorage.Frequency;
+import com.magicbanana666.enderstorage.menu.EnderChestMenu;
 import net.minecraft.core.NonNullList;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -13,26 +14,25 @@ import net.minecraft.world.ContainerHelper;
 import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.entity.ContainerUser;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.ChestMenu;
-import net.minecraft.world.inventory.DispenserMenu;
-import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.ItemStack;
 
-/** The shared inventory of one frequency. */
+/** The shared inventory of one frequency. Upgrades add slots up to the configured maximum. */
 public class ItemStorage implements Container {
 
     private final SharedStorage owner;
     private final Frequency frequency;
-    private final NonNullList<ItemStack> items;
-    /** Items that didn't fit after the storage size was made smaller; they come back when there is room. */
+    private final NonNullList<ItemStack> items = NonNullList.create();
+    /** Items that didn't fit after the storage was made smaller; they come back when there is room. */
     private final List<ItemStack> overflow = new ArrayList<>();
+    /** Slots added by upgrades. */
+    private int bonusSlots;
     private int openCount;
     private int changeCount;
 
     ItemStorage(SharedStorage owner, Frequency frequency) {
         this.owner = owner;
         this.frequency = frequency;
-        this.items = NonNullList.withSize(EnderStorageConfig.storageSlots(), ItemStack.EMPTY);
+        this.resize();
     }
 
     void load(int slot, ItemStack stack) {
@@ -43,8 +43,31 @@ public class ItemStorage implements Container {
         }
     }
 
+    void loadBonusSlots(int bonus) {
+        this.bonusSlots = Math.max(0, bonus);
+        this.resize();
+    }
+
+    /** Matches the number of slots to the config and the upgrades; slots that are removed go to the overflow. */
+    private void resize() {
+        int size = Math.min(EnderStorageConfig.chestStartSlots() + this.bonusSlots, EnderStorageConfig.chestMaxSlots());
+        while (this.items.size() < size) {
+            this.items.add(ItemStack.EMPTY);
+        }
+        while (this.items.size() > size) {
+            ItemStack removed = this.items.removeLast();
+            if (!removed.isEmpty()) {
+                this.overflow.add(removed);
+            }
+        }
+    }
+
     List<ItemStack> overflow() {
         return this.overflow;
+    }
+
+    int bonusSlots() {
+        return this.bonusSlots;
     }
 
     public Frequency frequency() {
@@ -59,13 +82,24 @@ public class ItemStorage implements Container {
         return this.changeCount;
     }
 
-    public void openMenu(ServerPlayer player, Component title) {
+    public boolean isFullyUpgraded() {
+        return this.items.size() >= EnderStorageConfig.chestMaxSlots();
+    }
+
+    /** Adds slots (up to the maximum) and returns the new number of slots. */
+    public int upgrade(int slots) {
+        this.bonusSlots = Math.min(this.bonusSlots + slots, EnderStorageConfig.chestMaxSlots() - EnderStorageConfig.chestStartSlots());
+        this.resize();
         this.restoreOverflow();
-        player.openMenu(new SimpleMenuProvider((id, inventory, p) -> switch (this.items.size()) {
-            case 9 -> new DispenserMenu(id, inventory, this);
-            case 54 -> new ChestMenu(MenuType.GENERIC_9x6, id, inventory, this, 6);
-            default -> new ChestMenu(MenuType.GENERIC_9x3, id, inventory, this, 3);
-        }, title));
+        this.setChanged();
+        return this.items.size();
+    }
+
+    public void openMenu(ServerPlayer player, Component title) {
+        this.resize();
+        this.restoreOverflow();
+        player.openMenu(new SimpleMenuProvider((id, inventory, p) -> new EnderChestMenu(id, inventory, this), title),
+                buf -> buf.writeVarInt(this.items.size()));
     }
 
     private void restoreOverflow() {
@@ -89,7 +123,7 @@ public class ItemStorage implements Container {
 
     @Override
     public ItemStack getItem(int slot) {
-        return this.items.get(slot);
+        return slot >= 0 && slot < this.items.size() ? this.items.get(slot) : ItemStack.EMPTY;
     }
 
     @Override
@@ -108,6 +142,9 @@ public class ItemStorage implements Container {
 
     @Override
     public void setItem(int slot, ItemStack stack) {
+        if (slot < 0 || slot >= this.items.size()) {
+            return;
+        }
         this.items.set(slot, stack);
         stack.limitSize(this.getMaxStackSize(stack));
         this.setChanged();
@@ -136,7 +173,9 @@ public class ItemStorage implements Container {
 
     @Override
     public void clearContent() {
-        this.items.clear();
+        for (int slot = 0; slot < this.items.size(); slot++) {
+            this.items.set(slot, ItemStack.EMPTY);
+        }
         this.setChanged();
     }
 }

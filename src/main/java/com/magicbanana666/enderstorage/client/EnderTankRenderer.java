@@ -44,6 +44,7 @@ public class EnderTankRenderer implements BlockEntityRenderer<EnderTankBlockEnti
         public Frequency frequency = Frequency.DEFAULT;
         public float valveAngle;
         public FluidStack fluid = FluidStack.EMPTY;
+        public int capacity = EnderStorageConfig.tankCapacity();
         public float time;
         public final ItemStackRenderState pearl = new ItemStackRenderState();
     }
@@ -64,6 +65,7 @@ public class EnderTankRenderer implements BlockEntityRenderer<EnderTankBlockEnti
         state.frequency = tank.getFrequency();
         state.valveAngle = Mth.lerp(partialTick, tank.prevValveAngle, tank.valveAngle);
         state.fluid = tank.getFluid().copy();
+        state.capacity = tank.capacity();
         state.time = (tank.getLevel() != null ? tank.getLevel().getGameTime() : 0) + partialTick + tank.getBlockPos().hashCode() % 100;
         this.itemModelResolver.updateForTopItem(state.pearl, new ItemStack(Items.ENDER_PEARL), ItemDisplayContext.GROUND, tank.getLevel(), null, 0);
     }
@@ -82,7 +84,7 @@ public class EnderTankRenderer implements BlockEntityRenderer<EnderTankBlockEnti
         pose.popPose();
 
         if (!state.fluid.isEmpty()) {
-            drawFluid(pose, collector, state.fluid, state.lightCoords);
+            drawFluid(pose, collector, state.fluid, state.capacity, state.lightCoords);
         }
         pose.popPose();
     }
@@ -98,7 +100,7 @@ public class EnderTankRenderer implements BlockEntityRenderer<EnderTankBlockEnti
         pose.translate(0F, 0.4165F, 0F);
         pose.mulPose(Axis.ZP.rotationDegrees(valveAngle));
         pose.translate(0F, -0.4165F, 0F);
-        collector.submitCustomGeometry(pose, TANK_TYPE, (p, c) -> TankModel.drawValve(p, c, frequency.hasOwner(), light, overlay));
+        collector.submitCustomGeometry(pose, TANK_TYPE, (p, c) -> TankModel.drawValve(p, c, frequency.hasOwner(), frequency.hasTeam(), light, overlay));
         pose.popPose();
 
         collector.submitCustomGeometry(pose, Buttons.RENDER_TYPE, (p, c) -> {
@@ -109,11 +111,11 @@ public class EnderTankRenderer implements BlockEntityRenderer<EnderTankBlockEnti
         pose.popPose();
     }
 
-    private static void drawFluid(PoseStack pose, SubmitNodeCollector collector, FluidStack fluid, int light) {
+    private static void drawFluid(PoseStack pose, SubmitNodeCollector collector, FluidStack fluid, int capacity, int light) {
         FluidModel model = Minecraft.getInstance().getModelManager().getFluidStateModelSet().get(fluid.getFluid().defaultFluidState());
         TextureAtlasSprite sprite = model.stillMaterial().sprite();
         int colour = model.fluidTintSource() != null ? model.fluidTintSource().colorAsStack(fluid) : -1;
-        float fill = Math.min(1F, fluid.getAmount() / (float) EnderStorageConfig.tankCapacity());
+        float fill = Math.min(1F, fluid.getAmount() / (float) capacity);
         float min = -0.28F;
         float max = 0.28F;
         float bottom = 0.12F;

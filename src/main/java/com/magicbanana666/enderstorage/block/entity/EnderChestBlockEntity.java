@@ -13,6 +13,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.transfer.ResourceHandler;
 import net.neoforged.neoforge.transfer.item.ItemResource;
@@ -113,6 +114,25 @@ public class EnderChestBlockEntity extends FrequencyBlockEntity {
             }
         }
         return InteractionResult.SUCCESS;
+    }
+
+    @Override
+    public boolean isUpgradeItem(ItemStack stack) {
+        return EnderStorageConfig.chestUpgradeSlots(stack) > 0;
+    }
+
+    @Override
+    public void upgrade(Player player, ItemStack stack) {
+        ItemStorage storage = this.getStorage();
+        if (storage == null) {
+            return;
+        }
+        if (storage.isFullyUpgraded()) {
+            player.sendOverlayMessage(Component.translatable("enderstorage.upgrade.chest_full", storage.getContainerSize()));
+            return;
+        }
+        int slots = storage.upgrade(EnderStorageConfig.chestUpgradeSlots(stack));
+        this.upgraded(player, stack, Component.translatable("enderstorage.upgrade.chest", slots, EnderStorageConfig.chestMaxSlots()));
     }
 
     @Override

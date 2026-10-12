@@ -72,7 +72,7 @@ public class EnderTankBlock extends EnderStorageBlock {
                 || !(level.getBlockEntity(pos) instanceof EnderTankBlockEntity tank)) {
             return result;
         }
-        if (!this.mayUse(player, tank.getFrequency())) {
+        if (!tank.getFrequency().mayUse(player)) {
             return this.denied(player, tank.getFrequency());
         }
         // Buckets and other fluid containers fill or empty the tank. The client has no access to the shared tank,

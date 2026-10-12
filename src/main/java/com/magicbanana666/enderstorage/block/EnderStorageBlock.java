@@ -1,7 +1,10 @@
 package com.magicbanana666.enderstorage.block;
 
+import java.util.Optional;
+
 import com.magicbanana666.enderstorage.EnderStorageConfig;
 import com.magicbanana666.enderstorage.Frequency;
+import com.magicbanana666.enderstorage.Teams;
 import com.magicbanana666.enderstorage.block.entity.FrequencyBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -33,7 +36,8 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 
 /**
  * Base of the ender chest and tank. Both have three colour buttons (dye them to change the frequency) and a lock
- * or valve (the personal item makes it personal, sneak + empty hand takes the item back).
+ * or valve (the personal item makes it personal, the team item makes it a team block, sneak + empty hand takes the
+ * item back). Upgrade items make the storage of the frequency bigger.
  */
 public abstract class EnderStorageBlock extends BaseEntityBlock {
 
@@ -109,6 +113,9 @@ public abstract class EnderStorageBlock extends BaseEntityBlock {
         if (part >= 1 && part <= 3) {
             DyeColor dye = DyeColor.getColor(stack);
             if (dye != null && frequency.colour(part - 1) != dye) {
+                if (!frequency.mayUse(player)) {
+                    return this.denied(player, frequency);
+                }
                 if (!level.isClientSide()) {
                     storage.setFrequency(frequency.withColour(part - 1, dye));
                     stack.consume(1, player);
@@ -116,11 +123,32 @@ public abstract class EnderStorageBlock extends BaseEntityBlock {
                 }
                 return InteractionResult.SUCCESS;
             }
-        } else if (part == LOCK && !frequency.hasOwner() && ItemStack.isSameItem(stack, EnderStorageConfig.personalItem())) {
+        } else if (part == LOCK && !frequency.isLocked() && EnderStorageConfig.isPersonalItem(stack)) {
             if (!level.isClientSide()) {
                 storage.setFrequency(frequency.withOwner(player));
                 stack.consume(1, player);
                 level.playSound(null, pos, SoundEvents.ARMOR_EQUIP_DIAMOND.value(), SoundSource.BLOCKS, 1F, 1F);
+            }
+            return InteractionResult.SUCCESS;
+        } else if (part == LOCK && !frequency.isLocked() && EnderStorageConfig.isTeamItem(stack)) {
+            if (!level.isClientSide()) {
+                Optional<Teams.TeamInfo> team = Teams.teamOf(player);
+                if (team.isEmpty()) {
+                    player.sendOverlayMessage(Component.translatable("enderstorage.no_team"));
+                    return InteractionResult.FAIL;
+                }
+                storage.setFrequency(frequency.withTeam(team.get()));
+                stack.consume(1, player);
+                level.playSound(null, pos, SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.BLOCKS, 1F, 1F);
+            }
+            return InteractionResult.SUCCESS;
+        }
+        if (storage.isUpgradeItem(stack)) {
+            if (!frequency.mayUse(player)) {
+                return this.denied(player, frequency);
+            }
+            if (!level.isClientSide()) {
+                storage.upgrade(player, stack);
             }
             return InteractionResult.SUCCESS;
         }
@@ -134,15 +162,16 @@ public abstract class EnderStorageBlock extends BaseEntityBlock {
         }
         int part = this.partAt(state, pos, hit.getLocation());
         Frequency frequency = storage.getFrequency();
-        if (part == LOCK && player.isShiftKeyDown() && frequency.hasOwner()) {
-            // Take the personal item back
-            if (!frequency.isOwner(player) && !player.hasInfiniteMaterials()) {
+        if (part == LOCK && player.isShiftKeyDown() && frequency.isLocked()) {
+            // Take the personal or team item back
+            if (!frequency.mayUse(player)) {
                 return this.denied(player, frequency);
             }
             if (!level.isClientSide()) {
-                storage.setFrequency(frequency.withoutOwner());
+                ItemStack lockItem = frequency.hasTeam() ? EnderStorageConfig.teamItem() : EnderStorageConfig.personalItem();
+                storage.setFrequency(frequency.withoutLock());
                 if (!player.hasInfiniteMaterials()) {
-                    player.getInventory().placeItemBackInInventory(EnderStorageConfig.personalItem());
+                    player.getInventory().placeItemBackInInventory(lockItem);
                 }
             }
             return InteractionResult.SUCCESS;
@@ -150,19 +179,15 @@ public abstract class EnderStorageBlock extends BaseEntityBlock {
         if (player.isShiftKeyDown()) {
             return InteractionResult.PASS;
         }
-        if (!this.mayUse(player, frequency)) {
+        if (!frequency.mayUse(player)) {
             return this.denied(player, frequency);
         }
         return storage.activate(player, part);
     }
 
-    protected boolean mayUse(Player player, Frequency frequency) {
-        return EnderStorageConfig.anarchyMode() || frequency.isOwner(player) || player.hasInfiniteMaterials();
-    }
-
     protected InteractionResult denied(Player player, Frequency frequency) {
         if (!player.level().isClientSide()) {
-            player.sendOverlayMessage(Component.translatable("enderstorage.not_owner", frequency.ownerName().orElse("?")));
+            player.sendOverlayMessage(frequency.deniedMessage());
         }
         return InteractionResult.FAIL;
     }

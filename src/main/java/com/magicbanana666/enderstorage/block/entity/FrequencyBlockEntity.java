@@ -9,11 +9,15 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.core.component.DataComponentGetter;
 import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
@@ -54,6 +58,20 @@ public abstract class FrequencyBlockEntity extends BlockEntity {
 
     public abstract InteractionResult activate(Player player, int part);
 
+    /** Whether right clicking with this item upgrades the block (also checked on the client). */
+    public abstract boolean isUpgradeItem(ItemStack stack);
+
+    /** Server side: applies the upgrade item, uses it up and tells the player the result. */
+    public abstract void upgrade(Player player, ItemStack stack);
+
+    protected void upgraded(Player player, ItemStack stack, Component message) {
+        stack.consume(1, player);
+        player.sendOverlayMessage(message);
+        if (this.level != null) {
+            this.level.playSound(null, this.worldPosition, SoundEvents.ENDER_EYE_DEATH, SoundSource.BLOCKS, 1F, 1.2F);
+        }
+    }
+
     public abstract int comparatorOutput();
 
     public int lightLevel() {
@@ -85,8 +103,8 @@ public abstract class FrequencyBlockEntity extends BlockEntity {
     @Override
     protected void collectImplicitComponents(DataComponentMap.Builder components) {
         super.collectImplicitComponents(components);
-        // In anarchy mode a broken chest loses its owner
-        components.set(EnderStorage.FREQUENCY.get(), EnderStorageConfig.anarchyMode() ? this.frequency.withoutOwner() : this.frequency);
+        // In anarchy mode a broken chest loses its owner or team
+        components.set(EnderStorage.FREQUENCY.get(), EnderStorageConfig.anarchyMode() ? this.frequency.withoutLock() : this.frequency);
     }
 
     @Override

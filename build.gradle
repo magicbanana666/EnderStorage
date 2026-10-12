@@ -12,6 +12,13 @@ java.toolchain.languageVersion = JavaLanguageVersion.of(25)
 // Keep build output out of OneDrive (it locks files while syncing)
 layout.buildDirectory = file("${System.getProperty('user.home')}/.gradle-builds/${project.name}")
 
+dependencies {
+    // -PextraMods=<jar>;<jar>: other mod jars to test compatibility with in the dev client
+    if (project.hasProperty('extraMods')) {
+        runtimeOnly files(project.property('extraMods').toString().split(';'))
+    }
+}
+
 neoForge {
     version = neoforge_version
 

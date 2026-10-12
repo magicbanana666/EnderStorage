@@ -28,7 +28,7 @@ public final class PouchProperties {
 
         @Override
         public boolean get(ItemStack stack, @Nullable ClientLevel level, @Nullable LivingEntity entity, int seed, ItemDisplayContext context) {
-            return Frequency.get(stack).hasOwner();
+            return Frequency.get(stack).isLocked();
         }
 
         @Override

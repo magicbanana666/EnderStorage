@@ -26,17 +26,19 @@ public class SharedStorage extends SavedData {
         ).apply(i, SlotItem::new));
     }
 
-    private record ItemEntry(Frequency frequency, List<SlotItem> items) {
+    private record ItemEntry(Frequency frequency, List<SlotItem> items, int bonusSlots) {
         static final Codec<ItemEntry> CODEC = RecordCodecBuilder.create(i -> i.group(
                 Frequency.CODEC.fieldOf("frequency").forGetter(ItemEntry::frequency),
-                SlotItem.CODEC.listOf().fieldOf("items").forGetter(ItemEntry::items)
+                SlotItem.CODEC.listOf().fieldOf("items").forGetter(ItemEntry::items),
+                Codec.INT.optionalFieldOf("bonus_slots", 0).forGetter(ItemEntry::bonusSlots)
         ).apply(i, ItemEntry::new));
     }
 
-    private record FluidEntry(Frequency frequency, FluidStack fluid) {
+    private record FluidEntry(Frequency frequency, FluidStack fluid, int bonusCapacity) {
         static final Codec<FluidEntry> CODEC = RecordCodecBuilder.create(i -> i.group(
                 Frequency.CODEC.fieldOf("frequency").forGetter(FluidEntry::frequency),
-                FluidStack.OPTIONAL_CODEC.fieldOf("fluid").forGetter(FluidEntry::fluid)
+                FluidStack.OPTIONAL_CODEC.fieldOf("fluid").forGetter(FluidEntry::fluid),
+                Codec.INT.optionalFieldOf("bonus_capacity", 0).forGetter(FluidEntry::bonusCapacity)
         ).apply(i, FluidEntry::new));
     }
 
@@ -57,6 +59,7 @@ public class SharedStorage extends SavedData {
     private SharedStorage(List<ItemEntry> items, List<FluidEntry> fluids) {
         for (ItemEntry entry : items) {
             ItemStorage storage = new ItemStorage(this, entry.frequency());
+            storage.loadBonusSlots(entry.bonusSlots());
             for (SlotItem item : entry.items()) {
                 storage.load(item.slot(), item.stack());
             }
@@ -64,6 +67,7 @@ public class SharedStorage extends SavedData {
         }
         for (FluidEntry entry : fluids) {
             FluidStorage storage = new FluidStorage(this, entry.frequency());
+            storage.loadBonusCapacity(entry.bonusCapacity());
             storage.load(entry.fluid());
             this.tanks.put(entry.frequency().key(), storage);
         }
@@ -94,8 +98,8 @@ public class SharedStorage extends SavedData {
             for (ItemStack overflow : storage.overflow()) {
                 items.add(new SlotItem(-1, overflow));
             }
-            if (!items.isEmpty()) {
-                list.add(new ItemEntry(storage.frequency(), items));
+            if (!items.isEmpty() || storage.bonusSlots() > 0) {
+                list.add(new ItemEntry(storage.frequency(), items, storage.bonusSlots()));
             }
         }
         return list;
@@ -104,8 +108,8 @@ public class SharedStorage extends SavedData {
     private List<FluidEntry> saveFluids() {
         List<FluidEntry> list = new ArrayList<>();
         for (FluidStorage storage : this.tanks.values()) {
-            if (!storage.getFluid().isEmpty()) {
-                list.add(new FluidEntry(storage.frequency(), storage.getFluid()));
+            if (!storage.getFluid().isEmpty() || storage.bonusCapacity() > 0) {
+                list.add(new FluidEntry(storage.frequency(), storage.getFluid(), storage.bonusCapacity()));
             }
         }
         return list;

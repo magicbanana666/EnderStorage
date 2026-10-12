@@ -88,17 +88,24 @@ public final class TankModel {
         }
     }
 
-    /** Draws the valve; a personal tank uses the diamond valve texture (13 pixels lower). */
-    public static void drawValve(PoseStack.Pose pose, VertexConsumer consumer, boolean owned, int light, int overlay) {
-        draw(groups().getOrDefault("Valve", List.of()), pose, consumer, owned ? 13F / 64F : 0F, light, overlay);
+    /** Emerald green for the valve of a team tank, drawn over the diamond valve texture. */
+    private static final int TEAM_TINT = 0xFF4CE07A;
+
+    /** Draws the valve; a personal tank uses the diamond valve texture (13 pixels lower), a team tank a green one. */
+    public static void drawValve(PoseStack.Pose pose, VertexConsumer consumer, boolean owned, boolean team, int light, int overlay) {
+        draw(groups().getOrDefault("Valve", List.of()), pose, consumer, owned || team ? 13F / 64F : 0F, team ? TEAM_TINT : -1, light, overlay);
     }
 
     private static void draw(List<Vertex[]> faces, PoseStack.Pose pose, VertexConsumer consumer, float vOffset, int light, int overlay) {
+        draw(faces, pose, consumer, vOffset, -1, light, overlay);
+    }
+
+    private static void draw(List<Vertex[]> faces, PoseStack.Pose pose, VertexConsumer consumer, float vOffset, int colour, int light, int overlay) {
         for (Vertex[] face : faces) {
             // The render type draws quads: repeat the last corner of triangles
             for (int i = 0; i < 4; i++) {
                 Vertex v = face[Math.min(i, face.length - 1)];
-                consumer.addVertex(pose, v.x(), v.y(), v.z()).setColor(-1).setUv(v.u(), v.v() + vOffset).setOverlay(overlay).setLight(light)
+                consumer.addVertex(pose, v.x(), v.y(), v.z()).setColor(colour).setUv(v.u(), v.v() + vOffset).setOverlay(overlay).setLight(light)
                         .setNormal(pose, v.nx(), v.ny(), v.nz());
             }
         }

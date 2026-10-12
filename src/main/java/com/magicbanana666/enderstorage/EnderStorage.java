@@ -6,10 +6,15 @@ import com.magicbanana666.enderstorage.block.entity.EnderChestBlockEntity;
 import com.magicbanana666.enderstorage.block.entity.EnderTankBlockEntity;
 import com.magicbanana666.enderstorage.item.EnderPouchItem;
 import com.magicbanana666.enderstorage.item.FrequencyBlockItem;
+import com.magicbanana666.enderstorage.menu.EnderChestMenu;
+import com.magicbanana666.enderstorage.menu.EnderTankMenu;
 import com.magicbanana666.enderstorage.recipe.FrequencyShapedRecipe;
 import com.magicbanana666.enderstorage.recipe.RecolourRecipe;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.util.ExtraCodecs;
+import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.level.block.SoundType;
@@ -22,6 +27,7 @@ import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
+import net.neoforged.neoforge.common.extensions.IMenuTypeExtension;
 import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredHolder;
@@ -41,9 +47,13 @@ public final class EnderStorage {
     private static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITIES = DeferredRegister.create(Registries.BLOCK_ENTITY_TYPE, MOD_ID);
     private static final DeferredRegister.DataComponents COMPONENTS = DeferredRegister.createDataComponents(Registries.DATA_COMPONENT_TYPE, MOD_ID);
     private static final DeferredRegister<RecipeSerializer<?>> RECIPES = DeferredRegister.create(Registries.RECIPE_SERIALIZER, MOD_ID);
+    private static final DeferredRegister<MenuType<?>> MENUS = DeferredRegister.create(Registries.MENU, MOD_ID);
 
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<Frequency>> FREQUENCY = COMPONENTS.registerComponentType("frequency",
             builder -> builder.persistent(Frequency.CODEC).networkSynchronized(Frequency.STREAM_CODEC));
+    /** Pump upgrades of an ender tank item, kept when the tank is broken. */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> PUMP_UPGRADES = COMPONENTS.registerComponentType("pump_upgrades",
+            builder -> builder.persistent(ExtraCodecs.NON_NEGATIVE_INT).networkSynchronized(ByteBufCodecs.VAR_INT));
 
     public static final DeferredBlock<EnderChestBlock> ENDER_CHEST = BLOCKS.registerBlock("ender_chest", EnderChestBlock::new,
             p -> p.mapColor(MapColor.COLOR_BLACK).strength(20F, 100F).sound(SoundType.STONE).noOcclusion().pushReaction(PushReaction.BLOCK));
@@ -62,6 +72,11 @@ public final class EnderStorage {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<EnderTankBlockEntity>> ENDER_TANK_BE = BLOCK_ENTITIES.register("ender_tank",
             () -> new BlockEntityType<>(EnderTankBlockEntity::new, ENDER_TANK.get()));
 
+    public static final DeferredHolder<MenuType<?>, MenuType<EnderChestMenu>> ENDER_CHEST_MENU = MENUS.register("ender_chest",
+            () -> IMenuTypeExtension.create(EnderChestMenu::new));
+    public static final DeferredHolder<MenuType<?>, MenuType<EnderTankMenu>> ENDER_TANK_MENU = MENUS.register("ender_tank",
+            () -> IMenuTypeExtension.create(EnderTankMenu::new));
+
     public static final DeferredHolder<RecipeSerializer<?>, RecipeSerializer<FrequencyShapedRecipe>> CREATE_RECIPE = RECIPES.register("create_recipe",
             () -> FrequencyShapedRecipe.SERIALIZER);
     public static final DeferredHolder<RecipeSerializer<?>, RecipeSerializer<RecolourRecipe>> RECOLOUR_RECIPE = RECIPES.register("recolour_recipe",
@@ -73,6 +88,7 @@ public final class EnderStorage {
         BLOCK_ENTITIES.register(modBus);
         COMPONENTS.register(modBus);
         RECIPES.register(modBus);
+        MENUS.register(modBus);
         container.registerConfig(ModConfig.Type.SERVER, EnderStorageConfig.SPEC);
         modBus.addListener(EnderStorage::registerCapabilities);
         modBus.addListener(EnderStorage::addToCreativeTabs);

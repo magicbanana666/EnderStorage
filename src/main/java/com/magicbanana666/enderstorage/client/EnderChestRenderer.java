@@ -96,7 +96,7 @@ public class EnderChestRenderer implements BlockEntityRenderer<EnderChestBlockEn
         pose.pushPose();
         pose.translate(0F, 1F, 1F);
         pose.scale(1F, -1F, -1F);
-        collector.submitModel(MODEL, new EnderChestModel.State(lidAngle, frequency.hasOwner()), pose, EnderChestModel.RENDER_TYPE, light, overlay, 0, breakProgress);
+        collector.submitModel(MODEL, new EnderChestModel.State(lidAngle, frequency.hasOwner(), frequency.hasTeam()), pose, EnderChestModel.RENDER_TYPE, light, overlay, 0, breakProgress);
         pose.popPose();
 
         // The buttons sit on the lid and turn with it around the hinge at the back

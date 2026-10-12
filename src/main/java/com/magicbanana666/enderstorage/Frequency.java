@@ -17,10 +17,11 @@ import net.minecraft.world.item.ItemStack;
 import org.jspecify.annotations.Nullable;
 
 /**
- * The three colours (and optionally the owner) that link ender chests, tanks and pouches together.
+ * The three colours (and optionally the owner or team) that link ender chests, tanks and pouches together.
  * Everything with the same frequency shares the same storage.
  */
-public record Frequency(DyeColor left, DyeColor middle, DyeColor right, Optional<UUID> owner, Optional<String> ownerName) {
+public record Frequency(DyeColor left, DyeColor middle, DyeColor right, Optional<UUID> owner, Optional<String> ownerName,
+                        Optional<String> team, Optional<String> teamName) {
 
     public static final Frequency DEFAULT = new Frequency(DyeColor.WHITE, DyeColor.WHITE, DyeColor.WHITE);
 
@@ -29,7 +30,9 @@ public record Frequency(DyeColor left, DyeColor middle, DyeColor right, Optional
             DyeColor.CODEC.fieldOf("middle").forGetter(Frequency::middle),
             DyeColor.CODEC.fieldOf("right").forGetter(Frequency::right),
             UUIDUtil.CODEC.optionalFieldOf("owner").forGetter(Frequency::owner),
-            Codec.STRING.optionalFieldOf("owner_name").forGetter(Frequency::ownerName)
+            Codec.STRING.optionalFieldOf("owner_name").forGetter(Frequency::ownerName),
+            Codec.STRING.optionalFieldOf("team").forGetter(Frequency::team),
+            Codec.STRING.optionalFieldOf("team_name").forGetter(Frequency::teamName)
     ).apply(i, Frequency::new));
 
     public static final StreamCodec<RegistryFriendlyByteBuf, Frequency> STREAM_CODEC = StreamCodec.composite(
@@ -38,10 +41,12 @@ public record Frequency(DyeColor left, DyeColor middle, DyeColor right, Optional
             DyeColor.STREAM_CODEC, Frequency::right,
             ByteBufCodecs.optional(UUIDUtil.STREAM_CODEC), Frequency::owner,
             ByteBufCodecs.optional(ByteBufCodecs.STRING_UTF8), Frequency::ownerName,
+            ByteBufCodecs.optional(ByteBufCodecs.STRING_UTF8), Frequency::team,
+            ByteBufCodecs.optional(ByteBufCodecs.STRING_UTF8), Frequency::teamName,
             Frequency::new);
 
     public Frequency(DyeColor left, DyeColor middle, DyeColor right) {
-        this(left, middle, right, Optional.empty(), Optional.empty());
+        this(left, middle, right, Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty());
     }
 
     public static Frequency of(DyeColor colour) {
@@ -68,37 +73,77 @@ public record Frequency(DyeColor left, DyeColor middle, DyeColor right, Optional
 
     public Frequency withColour(int button, DyeColor colour) {
         return switch (button) {
-            case 0 -> new Frequency(colour, this.middle, this.right, this.owner, this.ownerName);
-            case 1 -> new Frequency(this.left, colour, this.right, this.owner, this.ownerName);
-            default -> new Frequency(this.left, this.middle, colour, this.owner, this.ownerName);
+            case 0 -> new Frequency(colour, this.middle, this.right, this.owner, this.ownerName, this.team, this.teamName);
+            case 1 -> new Frequency(this.left, colour, this.right, this.owner, this.ownerName, this.team, this.teamName);
+            default -> new Frequency(this.left, this.middle, colour, this.owner, this.ownerName, this.team, this.teamName);
         };
     }
 
     /** Replaces the colours that are not null. */
     public Frequency withColours(@Nullable DyeColor left, @Nullable DyeColor middle, @Nullable DyeColor right) {
-        return new Frequency(left != null ? left : this.left, middle != null ? middle : this.middle, right != null ? right : this.right, this.owner, this.ownerName);
+        return new Frequency(left != null ? left : this.left, middle != null ? middle : this.middle, right != null ? right : this.right, this.owner, this.ownerName, this.team, this.teamName);
     }
 
     public Frequency withOwner(Player player) {
-        return new Frequency(this.left, this.middle, this.right, Optional.of(player.getUUID()), Optional.of(player.getGameProfile().name()));
+        return new Frequency(this.left, this.middle, this.right, Optional.of(player.getUUID()), Optional.of(player.getGameProfile().name()), Optional.empty(), Optional.empty());
     }
 
-    public Frequency withoutOwner() {
-        return new Frequency(this.left, this.middle, this.right, Optional.empty(), Optional.empty());
+    public Frequency withTeam(Teams.TeamInfo team) {
+        return new Frequency(this.left, this.middle, this.right, Optional.empty(), Optional.empty(), Optional.of(team.id()), Optional.of(team.name()));
     }
 
+    /** The same colours without owner or team. */
+    public Frequency withoutLock() {
+        return new Frequency(this.left, this.middle, this.right);
+    }
+
+    /** Personal: only the owner can use it. */
     public boolean hasOwner() {
         return this.owner.isPresent();
+    }
+
+    /** Team: only members of the team can use it. */
+    public boolean hasTeam() {
+        return this.team.isPresent();
+    }
+
+    public boolean isLocked() {
+        return this.hasOwner() || this.hasTeam();
     }
 
     public boolean isOwner(Player player) {
         return this.owner.isEmpty() || this.owner.get().equals(player.getUUID());
     }
 
-    /** The key of the shared storage; the owner name is only for display. */
+    /**
+     * Whether the player may use (and upgrade) storage of this frequency. Team membership is only known on the
+     * server, so the client lets team members through and the server decides.
+     */
+    public boolean mayUse(Player player) {
+        if (EnderStorageConfig.anarchyMode() || player.hasInfiniteMaterials()) {
+            return true;
+        }
+        if (this.owner.isPresent()) {
+            return this.owner.get().equals(player.getUUID());
+        }
+        if (this.team.isPresent()) {
+            return player.level().isClientSide() || Teams.isMember(player, this.team.get());
+        }
+        return true;
+    }
+
+    /** The message shown to a player that may not use this frequency. */
+    public Component deniedMessage() {
+        return this.hasTeam()
+                ? Component.translatable("enderstorage.not_team", this.teamName.orElse("?"))
+                : Component.translatable("enderstorage.not_owner", this.ownerName.orElse("?"));
+    }
+
+    /** The key of the shared storage; the owner and team names are only for display. */
     public String key() {
         return this.left.getSerializedName() + "," + this.middle.getSerializedName() + "," + this.right.getSerializedName()
-                + this.owner.map(uuid -> "," + uuid).orElse("");
+                + this.owner.map(uuid -> "," + uuid).orElse("")
+                + this.team.map(id -> ",team:" + id).orElse("");
     }
 
     public MutableComponent describe() {

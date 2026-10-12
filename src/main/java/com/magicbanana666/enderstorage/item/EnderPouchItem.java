@@ -2,7 +2,6 @@ package com.magicbanana666.enderstorage.item;
 
 import java.util.function.Consumer;
 
-import com.magicbanana666.enderstorage.EnderStorageConfig;
 import com.magicbanana666.enderstorage.Frequency;
 import com.magicbanana666.enderstorage.block.entity.EnderChestBlockEntity;
 import com.magicbanana666.enderstorage.storage.SharedStorage;
@@ -42,9 +41,9 @@ public class EnderPouchItem extends Item {
             return InteractionResult.PASS;
         }
         Frequency frequency = chest.getFrequency();
-        if (frequency.hasOwner() && !frequency.isOwner(player) && !EnderStorageConfig.anarchyMode()) {
-            // Someone else's personal chest: copy the colours only
-            frequency = frequency.withoutOwner();
+        if (!frequency.mayUse(player)) {
+            // Someone else's personal or team chest: copy the colours only
+            frequency = frequency.withoutLock();
         }
         if (!context.getLevel().isClientSide()) {
             frequency.applyTo(context.getItemInHand());
@@ -61,8 +60,8 @@ public class EnderPouchItem extends Item {
         ItemStack stack = player.getItemInHand(hand);
         Frequency frequency = Frequency.get(stack);
         if (player instanceof ServerPlayer serverPlayer && serverPlayer.level().getServer() != null) {
-            if (frequency.hasOwner() && !frequency.isOwner(player) && !EnderStorageConfig.anarchyMode() && !player.hasInfiniteMaterials()) {
-                player.sendOverlayMessage(Component.translatable("enderstorage.not_owner", frequency.ownerName().orElse("?")));
+            if (!frequency.mayUse(player)) {
+                player.sendOverlayMessage(frequency.deniedMessage());
                 return InteractionResult.FAIL;
             }
             SharedStorage.get(serverPlayer.level().getServer()).chest(frequency).openMenu(serverPlayer, stack.getHoverName());
