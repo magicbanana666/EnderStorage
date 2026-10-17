@@ -6,6 +6,7 @@ import java.util.List;
 import com.magicbanana666.enderstorage.EnderStorageConfig;
 import com.magicbanana666.enderstorage.Frequency;
 import com.magicbanana666.enderstorage.menu.EnderChestMenu;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.NonNullList;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -15,6 +16,7 @@ import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.entity.ContainerUser;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import org.jspecify.annotations.Nullable;
 
 /** The shared inventory of one frequency. Upgrades add slots up to the configured maximum. */
 public class ItemStorage implements Container {
@@ -95,10 +97,12 @@ public class ItemStorage implements Container {
         return this.items.size();
     }
 
-    public void openMenu(ServerPlayer player, Component title) {
+    /** Opens the inventory; {@code pos} is the chest it was opened from, or null when opened from an item. */
+    public void openMenu(ServerPlayer player, Component title, @Nullable BlockPos pos) {
         this.resize();
         this.restoreOverflow();
-        player.openMenu(new SimpleMenuProvider((id, inventory, p) -> new EnderChestMenu(id, inventory, this), title),
+        this.giveOverflow(player);
+        player.openMenu(new SimpleMenuProvider((id, inventory, p) -> new EnderChestMenu(id, inventory, this, pos), title),
                 buf -> buf.writeVarInt(this.items.size()));
     }
 
@@ -109,6 +113,19 @@ public class ItemStorage implements Container {
                 this.setChanged();
             }
         }
+    }
+
+    /** Overflow that still doesn't fit goes to the player (dropped at their feet if their inventory is full). */
+    private void giveOverflow(ServerPlayer player) {
+        if (this.overflow.isEmpty()) {
+            return;
+        }
+        int stacks = this.overflow.size();
+        while (!this.overflow.isEmpty()) {
+            player.getInventory().placeItemBackInInventory(this.overflow.removeFirst());
+        }
+        this.setChanged();
+        player.sendSystemMessage(Component.translatable("enderstorage.overflow", stacks));
     }
 
     @Override

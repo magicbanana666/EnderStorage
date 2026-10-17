@@ -110,7 +110,7 @@ public class EnderChestBlockEntity extends FrequencyBlockEntity {
         if (player instanceof ServerPlayer serverPlayer) {
             ItemStorage storage = this.getStorage();
             if (storage != null) {
-                storage.openMenu(serverPlayer, Component.translatable(this.getBlockState().getBlock().getDescriptionId()));
+                storage.openMenu(serverPlayer, Component.translatable(this.getBlockState().getBlock().getDescriptionId()), this.worldPosition);
             }
         }
         return InteractionResult.SUCCESS;

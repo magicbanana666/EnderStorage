@@ -9,6 +9,7 @@
   "enderstorage.team": "Team: %s",
   "enderstorage.pump_upgrades": "Pump upgrades: %s",
   "enderstorage.upgrade.chest": "Ender chest upgraded: %s / %s slots",
+  "enderstorage.overflow": "%s stacks did not fit in the smaller ender chest and were given to you",
   "enderstorage.upgrade.chest_full": "This ender chest is fully upgraded (%s slots)",
   "enderstorage.upgrade.tank": "Ender tank upgraded: %s / %s buckets",
   "enderstorage.upgrade.tank_full": "This ender tank is fully upgraded (%s buckets)",

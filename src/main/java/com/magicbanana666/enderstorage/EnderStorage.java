@@ -16,6 +16,7 @@ import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.util.ExtraCodecs;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.CreativeModeTabs;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -54,6 +55,9 @@ public final class EnderStorage {
     /** Pump upgrades of an ender tank item, kept when the tank is broken. */
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> PUMP_UPGRADES = COMPONENTS.registerComponentType("pump_upgrades",
             builder -> builder.persistent(ExtraCodecs.NON_NEGATIVE_INT).networkSynchronized(ByteBufCodecs.VAR_INT));
+    /** The item that locked a personal or team chest or tank, given back when the lock is removed. */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<ItemStack>> LOCK_ITEM = COMPONENTS.registerComponentType("lock_item",
+            builder -> builder.persistent(ItemStack.CODEC).networkSynchronized(ItemStack.STREAM_CODEC));
 
     public static final DeferredBlock<EnderChestBlock> ENDER_CHEST = BLOCKS.registerBlock("ender_chest", EnderChestBlock::new,
             p -> p.mapColor(MapColor.COLOR_BLACK).strength(20F, 100F).sound(SoundType.STONE).noOcclusion().pushReaction(PushReaction.BLOCK));

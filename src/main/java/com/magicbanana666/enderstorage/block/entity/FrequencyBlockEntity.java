@@ -29,6 +29,8 @@ import org.jspecify.annotations.Nullable;
 public abstract class FrequencyBlockEntity extends BlockEntity {
 
     protected Frequency frequency = Frequency.DEFAULT;
+    /** The item used to lock this block (empty if unknown or not locked). */
+    private ItemStack lockItem = ItemStack.EMPTY;
 
     protected FrequencyBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
@@ -45,6 +47,20 @@ public abstract class FrequencyBlockEntity extends BlockEntity {
         if (this.level != null) {
             this.level.sendBlockUpdated(this.worldPosition, this.getBlockState(), this.getBlockState(), 3);
         }
+    }
+
+    /** Locks the block with the given item (one of it is kept to give back later). */
+    public void lock(Frequency locked, ItemStack item) {
+        this.lockItem = item.copyWithCount(1);
+        this.setFrequency(locked);
+    }
+
+    /** Removes the lock and returns the item that locked it, or the given fallback if that is unknown. */
+    public ItemStack unlock(ItemStack fallback) {
+        ItemStack item = this.lockItem.isEmpty() ? fallback : this.lockItem;
+        this.lockItem = ItemStack.EMPTY;
+        this.setFrequency(this.frequency.withoutLock());
+        return item;
     }
 
     protected void onFrequencyChanged() {
@@ -82,6 +98,9 @@ public abstract class FrequencyBlockEntity extends BlockEntity {
     protected void saveAdditional(ValueOutput output) {
         super.saveAdditional(output);
         output.store("Frequency", Frequency.CODEC, this.frequency);
+        if (!this.lockItem.isEmpty()) {
+            output.store("LockItem", ItemStack.CODEC, this.lockItem);
+        }
     }
 
     @Override
@@ -89,6 +108,7 @@ public abstract class FrequencyBlockEntity extends BlockEntity {
         super.loadAdditional(input);
         Frequency old = this.frequency;
         this.frequency = input.read("Frequency", Frequency.CODEC).orElse(Frequency.DEFAULT);
+        this.lockItem = input.read("LockItem", ItemStack.CODEC).orElse(ItemStack.EMPTY);
         if (!old.equals(this.frequency)) {
             this.onFrequencyChanged();
         }
@@ -98,6 +118,7 @@ public abstract class FrequencyBlockEntity extends BlockEntity {
     protected void applyImplicitComponents(DataComponentGetter components) {
         super.applyImplicitComponents(components);
         this.frequency = components.getOrDefault(EnderStorage.FREQUENCY.get(), Frequency.DEFAULT);
+        this.lockItem = this.frequency.isLocked() ? components.getOrDefault(EnderStorage.LOCK_ITEM.get(), ItemStack.EMPTY).copy() : ItemStack.EMPTY;
     }
 
     @Override
@@ -105,12 +126,16 @@ public abstract class FrequencyBlockEntity extends BlockEntity {
         super.collectImplicitComponents(components);
         // In anarchy mode a broken chest loses its owner or team
         components.set(EnderStorage.FREQUENCY.get(), EnderStorageConfig.anarchyMode() ? this.frequency.withoutLock() : this.frequency);
+        if (!EnderStorageConfig.anarchyMode() && this.frequency.isLocked() && !this.lockItem.isEmpty()) {
+            components.set(EnderStorage.LOCK_ITEM.get(), this.lockItem.copy());
+        }
     }
 
     @Override
     public void removeComponentsFromTag(ValueOutput output) {
         super.removeComponentsFromTag(output);
         output.discard("Frequency");
+        output.discard("LockItem");
     }
 
     @Override

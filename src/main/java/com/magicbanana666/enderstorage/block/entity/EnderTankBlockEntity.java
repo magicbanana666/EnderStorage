@@ -138,8 +138,13 @@ public class EnderTankBlockEntity extends FrequencyBlockEntity {
             if (budget <= 0 || source.getFluid().isEmpty()) {
                 return;
             }
-            ResourceHandler<FluidResource> target = this.level.getCapability(Capabilities.Fluid.BLOCK, this.worldPosition.relative(side), side.getOpposite());
-            if (target != null) {
+            BlockPos pos = this.worldPosition.relative(side);
+            // A tank of the same frequency shares this storage; pushing into it would only move the fluid back in
+            if (this.level.getBlockEntity(pos) instanceof EnderTankBlockEntity tank && tank.getFrequency().key().equals(this.frequency.key())) {
+                continue;
+            }
+            ResourceHandler<FluidResource> target = this.level.getCapability(Capabilities.Fluid.BLOCK, pos, side.getOpposite());
+            if (target != null && target != source) {
                 budget -= ResourceHandlerUtil.move(source, target, resource -> true, budget, null);
             }
         }

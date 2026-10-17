@@ -1,7 +1,9 @@
 package com.magicbanana666.enderstorage.menu;
 
 import com.magicbanana666.enderstorage.EnderStorage;
+import com.magicbanana666.enderstorage.block.entity.EnderChestBlockEntity;
 import com.magicbanana666.enderstorage.storage.ItemStorage;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.util.Mth;
 import net.minecraft.world.Container;
@@ -24,6 +26,8 @@ public class EnderChestMenu extends AbstractContainerMenu {
     public static final int MAX_VISIBLE_ROWS = 6;
 
     private final @Nullable ItemStorage storage;
+    /** Server side: the chest the inventory was opened from, or null when opened from an item. */
+    private final @Nullable BlockPos pos;
     private final int visibleRows;
     private final int viewSize;
     /** Number of slots of the storage. */
@@ -33,16 +37,17 @@ public class EnderChestMenu extends AbstractContainerMenu {
 
     /** Client side: the server sends the number of slots. */
     public EnderChestMenu(int id, Inventory inventory, RegistryFriendlyByteBuf buf) {
-        this(id, inventory, null, buf.readVarInt());
+        this(id, inventory, null, null, buf.readVarInt());
     }
 
-    public EnderChestMenu(int id, Inventory inventory, ItemStorage storage) {
-        this(id, inventory, storage, storage.getContainerSize());
+    public EnderChestMenu(int id, Inventory inventory, ItemStorage storage, @Nullable BlockPos pos) {
+        this(id, inventory, storage, pos, storage.getContainerSize());
     }
 
-    private EnderChestMenu(int id, Inventory inventory, @Nullable ItemStorage storage, int slots) {
+    private EnderChestMenu(int id, Inventory inventory, @Nullable ItemStorage storage, @Nullable BlockPos pos, int slots) {
         super(EnderStorage.ENDER_CHEST_MENU.get(), id);
         this.storage = storage;
+        this.pos = pos;
         this.visibleRows = Mth.clamp(Mth.positiveCeilDiv(slots, COLUMNS), 1, MAX_VISIBLE_ROWS);
         this.viewSize = this.visibleRows * COLUMNS;
         this.size.set(slots);
@@ -152,7 +157,20 @@ public class EnderChestMenu extends AbstractContainerMenu {
 
     @Override
     public boolean stillValid(Player player) {
-        return this.storage == null || this.storage.stillValid(player);
+        if (this.storage == null) {
+            return true;
+        }
+        // The lock (or team) may have changed while the inventory is open
+        if (!this.storage.frequency().mayUse(player)) {
+            return false;
+        }
+        if (this.pos == null) {
+            return true;
+        }
+        // Opened from a chest: it must still be there, on the same frequency, and in reach
+        return player.level().getBlockEntity(this.pos) instanceof EnderChestBlockEntity chest
+                && chest.getFrequency().key().equals(this.storage.frequency().key())
+                && player.isWithinBlockInteractionRange(this.pos, 4.0);
     }
 
     @Override

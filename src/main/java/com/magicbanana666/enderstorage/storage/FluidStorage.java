@@ -70,6 +70,10 @@ public class FluidStorage extends FluidStacksResourceHandler {
 
     @Override
     protected void onContentsChanged(int index, FluidStack previousContents) {
+        // Called on every committed transaction, also when nothing actually changed
+        if (FluidStack.matches(previousContents, this.getFluid())) {
+            return;
+        }
         this.changeCount++;
         this.owner.setDirty();
     }

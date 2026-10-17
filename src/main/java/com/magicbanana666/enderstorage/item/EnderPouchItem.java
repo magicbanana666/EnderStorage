@@ -64,7 +64,7 @@ public class EnderPouchItem extends Item {
                 player.sendOverlayMessage(frequency.deniedMessage());
                 return InteractionResult.FAIL;
             }
-            SharedStorage.get(serverPlayer.level().getServer()).chest(frequency).openMenu(serverPlayer, stack.getHoverName());
+            SharedStorage.get(serverPlayer.level().getServer()).chest(frequency).openMenu(serverPlayer, stack.getHoverName(), null);
         }
         return InteractionResult.SUCCESS;
     }

@@ -125,7 +125,7 @@ public abstract class EnderStorageBlock extends BaseEntityBlock {
             }
         } else if (part == LOCK && !frequency.isLocked() && EnderStorageConfig.isPersonalItem(stack)) {
             if (!level.isClientSide()) {
-                storage.setFrequency(frequency.withOwner(player));
+                storage.lock(frequency.withOwner(player), stack);
                 stack.consume(1, player);
                 level.playSound(null, pos, SoundEvents.ARMOR_EQUIP_DIAMOND.value(), SoundSource.BLOCKS, 1F, 1F);
             }
@@ -137,7 +137,7 @@ public abstract class EnderStorageBlock extends BaseEntityBlock {
                     player.sendOverlayMessage(Component.translatable("enderstorage.no_team"));
                     return InteractionResult.FAIL;
                 }
-                storage.setFrequency(frequency.withTeam(team.get()));
+                storage.lock(frequency.withTeam(team.get()), stack);
                 stack.consume(1, player);
                 level.playSound(null, pos, SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.BLOCKS, 1F, 1F);
             }
@@ -168,8 +168,8 @@ public abstract class EnderStorageBlock extends BaseEntityBlock {
                 return this.denied(player, frequency);
             }
             if (!level.isClientSide()) {
-                ItemStack lockItem = frequency.hasTeam() ? EnderStorageConfig.teamItem() : EnderStorageConfig.personalItem();
-                storage.setFrequency(frequency.withoutLock());
+                // The item that locked it; the configured item if that is unknown
+                ItemStack lockItem = storage.unlock(frequency.hasTeam() ? EnderStorageConfig.teamItem() : EnderStorageConfig.personalItem());
                 if (!player.hasInfiniteMaterials()) {
                     player.getInventory().placeItemBackInInventory(lockItem);
                 }
