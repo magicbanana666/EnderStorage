@@ -65,7 +65,7 @@ public class EnderChestRenderer implements BlockEntityRenderer<EnderChestBlockEn
             // The end portal floor and the floating pearl, seen when the lid is open
             pose.pushPose();
             pose.translate(0.5F, 0F, 0.5F);
-            pose.mulPose(Axis.YP.rotationDegrees(-state.facing.toYRot()));
+            pose.rotate(Axis.YP.rotationDegrees(-state.facing.toYRot()));
             pose.translate(-0.5F, 0F, -0.5F);
             collector.submitCustomGeometry(pose, RenderTypes.endPortal(), (p, c) -> {
                 float y = 0.626F;
@@ -77,7 +77,7 @@ public class EnderChestRenderer implements BlockEntityRenderer<EnderChestBlockEn
             pose.popPose();
             pose.pushPose();
             pose.translate(0.5F, 0.2F - state.lidAngle * 0.5F + Mth.sin(state.time / 10F) * 0.05F, 0.5F);
-            pose.mulPose(Axis.YP.rotation(state.time / 20F));
+            pose.rotate(Axis.YP.rotation(state.time / 20F));
             pose.scale(0.5F, 0.5F, 0.5F);
             state.pearl.submit(pose, collector, 0xF000F0, OverlayTexture.NO_OVERLAY, 0);
             pose.popPose();
@@ -90,19 +90,23 @@ public class EnderChestRenderer implements BlockEntityRenderer<EnderChestBlockEn
                                  int light, int overlay, ModelFeatureRenderer.@Nullable CrumblingOverlay breakProgress) {
         pose.pushPose();
         pose.translate(0.5F, 0F, 0.5F);
-        pose.mulPose(Axis.YP.rotationDegrees(-facing.toYRot()));
+        pose.rotate(Axis.YP.rotationDegrees(-facing.toYRot()));
         pose.translate(-0.5F, 0F, -0.5F);
 
         pose.pushPose();
         pose.translate(0F, 1F, 1F);
         pose.scale(1F, -1F, -1F);
-        collector.submitModel(MODEL, new EnderChestModel.State(lidAngle, frequency.hasOwner(), frequency.hasTeam()), pose, EnderChestModel.RENDER_TYPE, light, overlay, 0, breakProgress);
+        EnderChestModel.State modelState = new EnderChestModel.State(lidAngle, frequency.hasOwner(), frequency.hasTeam());
+        collector.submitModel(MODEL, modelState, pose, EnderChestModel.RENDER_TYPE, light, overlay, 0);
+        if (breakProgress != null) {
+            collector.order(1).submitCrumblingOverlay(MODEL, modelState, pose, EnderChestModel.RENDER_TYPE, light, overlay, -1, breakProgress);
+        }
         pose.popPose();
 
         // The buttons sit on the lid and turn with it around the hinge at the back
         pose.pushPose();
         pose.translate(0.5F, 9F / 16F, 1F / 16F);
-        pose.mulPose(Axis.XP.rotation(lidAngle));
+        pose.rotate(Axis.XP.rotation(lidAngle));
         pose.translate(0F, 5F / 16F, 7F / 16F);
         collector.submitCustomGeometry(pose, Buttons.RENDER_TYPE, (p, c) -> Buttons.drawAll(p, c, frequency, 3F / 16F, 0F, 1F, light, overlay));
         pose.popPose();

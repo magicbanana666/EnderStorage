@@ -60,9 +60,9 @@ public final class EnderStorage {
             builder -> builder.persistent(ItemStack.CODEC).networkSynchronized(ItemStack.STREAM_CODEC));
 
     public static final DeferredBlock<EnderChestBlock> ENDER_CHEST = BLOCKS.registerBlock("ender_chest", EnderChestBlock::new,
-            p -> p.mapColor(MapColor.COLOR_BLACK).strength(20F, 100F).sound(SoundType.STONE).noOcclusion().pushReaction(PushReaction.BLOCK));
+            p -> p.mapColor(MapColor.COLOR_BLACK).strength(20F, 100F).sound(SoundType.STONE).noOcclusion().pushReaction(PushReaction.IMMOVEABLE));
     public static final DeferredBlock<EnderTankBlock> ENDER_TANK = BLOCKS.registerBlock("ender_tank", EnderTankBlock::new,
-            p -> p.mapColor(MapColor.COLOR_BLACK).strength(20F, 100F).sound(SoundType.STONE).noOcclusion().pushReaction(PushReaction.BLOCK));
+            p -> p.mapColor(MapColor.COLOR_BLACK).strength(20F, 100F).sound(SoundType.STONE).noOcclusion().pushReaction(PushReaction.IMMOVEABLE));
 
     public static final DeferredItem<FrequencyBlockItem> ENDER_CHEST_ITEM = ITEMS.registerItem("ender_chest",
             p -> new FrequencyBlockItem(ENDER_CHEST.get(), p), p -> p.useBlockDescriptionPrefix().component(FREQUENCY.get(), Frequency.DEFAULT));
@@ -93,7 +93,7 @@ public final class EnderStorage {
         COMPONENTS.register(modBus);
         RECIPES.register(modBus);
         MENUS.register(modBus);
-        container.registerConfig(ModConfig.Type.SERVER, EnderStorageConfig.SPEC);
+        container.registerConfig(ModConfig.Type.SYNCED, EnderStorageConfig.SPEC);
         modBus.addListener(EnderStorage::registerCapabilities);
         modBus.addListener(EnderStorage::addToCreativeTabs);
     }

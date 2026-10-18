@@ -5,12 +5,10 @@ import java.util.Map;
 
 import com.magicbanana666.enderstorage.EnderStorage;
 import com.magicbanana666.enderstorage.block.entity.EnderChestBlockEntity;
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
@@ -23,7 +21,6 @@ import org.jspecify.annotations.Nullable;
 
 public class EnderChestBlock extends EnderStorageBlock {
 
-    public static final MapCodec<EnderChestBlock> CODEC = simpleCodec(EnderChestBlock::new);
     private static final VoxelShape BODY = Block.box(1, 0, 1, 15, 14, 15);
 
     /** For a chest facing south: the three buttons on the lid and the lock at the front. */
@@ -49,11 +46,6 @@ public class EnderChestBlock extends EnderStorageBlock {
     @Override
     protected AABB[] parts() {
         return PARTS;
-    }
-
-    @Override
-    protected MapCodec<? extends BaseEntityBlock> codec() {
-        return CODEC;
     }
 
     @Override

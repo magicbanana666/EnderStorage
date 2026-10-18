@@ -4,7 +4,7 @@
 buttons. Everything with the same three colours shares the same inventory or tank, anywhere in the world, even
 across dimensions.
 
-For **Minecraft 26.1.2 on NeoForge**, one jar without dependencies.
+For **Minecraft 26.3 on NeoForge**, one jar without dependencies.
 
 ## Blocks and items
 
@@ -56,7 +56,7 @@ The colour of the wool sets all three colours of the result.
 
 ## Configuration
 
-`<world>/serverconfig/enderstorage-server.toml` (or in game through the mod list):
+`config/enderstorage-synced.toml` (synced to clients; also in game through the mod list):
 
 | Setting | Default | What it does |
 | --- | --- | --- |

@@ -78,7 +78,7 @@ public class EnderTankRenderer implements BlockEntityRenderer<EnderTankBlockEnti
         pose.translate(0.5F, 0F, 0.5F);
         pose.pushPose();
         pose.translate(0F, 0.45F + Mth.sin(state.time / 10F) * 0.1F, 0F);
-        pose.mulPose(Axis.YP.rotation(state.time / 20F));
+        pose.rotate(Axis.YP.rotation(state.time / 20F));
         pose.scale(0.5F, 0.5F, 0.5F);
         state.pearl.submit(pose, collector, 0xF000F0, OverlayTexture.NO_OVERLAY, 0);
         pose.popPose();
@@ -93,12 +93,12 @@ public class EnderTankRenderer implements BlockEntityRenderer<EnderTankBlockEnti
     public static void drawTank(PoseStack pose, SubmitNodeCollector collector, Direction facing, Frequency frequency, float valveAngle, int light, int overlay) {
         pose.pushPose();
         pose.translate(0.5F, 0F, 0.5F);
-        pose.mulPose(Axis.YP.rotationDegrees(-facing.toYRot() + 180F));
+        pose.rotate(Axis.YP.rotationDegrees(-facing.toYRot() + 180F));
         collector.submitCustomGeometry(pose, TANK_TYPE, (p, c) -> TankModel.drawBody(p, c, light, overlay));
 
         pose.pushPose();
         pose.translate(0F, 0.4165F, 0F);
-        pose.mulPose(Axis.ZP.rotationDegrees(valveAngle));
+        pose.rotate(Axis.ZP.rotationDegrees(valveAngle));
         pose.translate(0F, -0.4165F, 0F);
         collector.submitCustomGeometry(pose, TANK_TYPE, (p, c) -> TankModel.drawValve(p, c, frequency.hasOwner(), frequency.hasTeam(), light, overlay));
         pose.popPose();
