@@ -5,7 +5,6 @@ import java.util.Map;
 
 import com.magicbanana666.enderstorage.EnderStorage;
 import com.magicbanana666.enderstorage.block.entity.EnderTankBlockEntity;
-import com.mojang.serialization.MapCodec;
 import net.fabricmc.fabric.api.transfer.v1.context.ContainerItemContext;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidStorage;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidStorageUtil;
@@ -17,7 +16,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -31,7 +29,6 @@ import org.jspecify.annotations.Nullable;
 
 public class EnderTankBlock extends EnderStorageBlock {
 
-    public static final MapCodec<EnderTankBlock> CODEC = simpleCodec(EnderTankBlock::new);
     private static final VoxelShape BODY = Shapes.create(0.15, 0, 0.15, 0.85, 0.916, 0.85);
 
     /** For a tank facing south: the three buttons on top and the valve at the front. */
@@ -53,11 +50,6 @@ public class EnderTankBlock extends EnderStorageBlock {
     @Override
     protected AABB[] parts() {
         return PARTS;
-    }
-
-    @Override
-    protected MapCodec<? extends BaseEntityBlock> codec() {
-        return CODEC;
     }
 
     @Override

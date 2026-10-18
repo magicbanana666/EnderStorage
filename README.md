@@ -4,7 +4,7 @@
 buttons. Everything with the same three colours shares the same inventory or tank, anywhere in the world, even
 across dimensions.
 
-For **Minecraft 26.2 on Fabric**; needs Fabric API. Hoppers, pipes and tanks of other mods use the chests and
+For **Minecraft 26.3 on Fabric**; needs Fabric API. Hoppers, pipes and tanks of other mods use the chests and
 tanks through the Fabric transfer API.
 
 ## Blocks and items

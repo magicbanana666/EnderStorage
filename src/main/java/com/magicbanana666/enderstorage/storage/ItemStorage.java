@@ -11,6 +11,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.NonNullList;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.Prediction;
 import net.minecraft.world.Container;
 import net.minecraft.world.ContainerHelper;
 import net.minecraft.world.entity.ContainerUser;
@@ -138,7 +139,7 @@ public class ItemStorage implements Container {
         }
         int stacks = this.overflow.size();
         while (!this.overflow.isEmpty()) {
-            player.getInventory().placeItemBackInInventory(this.overflow.removeFirst());
+            player.getInventory().placeItemBackInInventory(this.overflow.removeFirst(), Prediction.SERVER_ONLY);
         }
         this.setChanged();
         player.sendSystemMessage(Component.translatable("enderstorage.overflow", stacks));

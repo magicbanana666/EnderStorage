@@ -12,6 +12,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.Prediction;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -172,7 +173,7 @@ public abstract class EnderStorageBlock extends BaseEntityBlock {
                 // The item that locked it; the configured item if that is unknown
                 ItemStack lockItem = storage.unlock(frequency.hasTeam() ? EnderStorageConfig.teamItem() : EnderStorageConfig.personalItem());
                 if (!player.hasInfiniteMaterials()) {
-                    player.getInventory().placeItemBackInInventory(lockItem);
+                    player.getInventory().placeItemBackInInventory(lockItem, Prediction.SERVER_ONLY);
                 }
             }
             return InteractionResult.SUCCESS;

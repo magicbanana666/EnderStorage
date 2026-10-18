@@ -55,9 +55,9 @@ public final class EnderStorage implements ModInitializer {
             builder -> builder.persistent(ItemStack.CODEC).networkSynchronized(ItemStack.STREAM_CODEC));
 
     public static final EnderChestBlock ENDER_CHEST = block("ender_chest", EnderChestBlock::new,
-            p -> p.mapColor(MapColor.COLOR_BLACK).strength(20F, 100F).sound(SoundType.STONE).noOcclusion().pushReaction(PushReaction.BLOCK));
+            p -> p.mapColor(MapColor.COLOR_BLACK).strength(20F, 100F).sound(SoundType.STONE).noOcclusion().pushReaction(PushReaction.IMMOVEABLE));
     public static final EnderTankBlock ENDER_TANK = block("ender_tank", EnderTankBlock::new,
-            p -> p.mapColor(MapColor.COLOR_BLACK).strength(20F, 100F).sound(SoundType.STONE).noOcclusion().pushReaction(PushReaction.BLOCK));
+            p -> p.mapColor(MapColor.COLOR_BLACK).strength(20F, 100F).sound(SoundType.STONE).noOcclusion().pushReaction(PushReaction.IMMOVEABLE));
 
     public static final FrequencyBlockItem ENDER_CHEST_ITEM = item("ender_chest",
             p -> new FrequencyBlockItem(ENDER_CHEST, p), p -> p.useBlockDescriptionPrefix().component(FREQUENCY, Frequency.DEFAULT));
