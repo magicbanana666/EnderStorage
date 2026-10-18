@@ -4,7 +4,8 @@
 buttons. Everything with the same three colours shares the same inventory or tank, anywhere in the world, even
 across dimensions.
 
-For **Minecraft 26.1.2 on NeoForge**, one jar without dependencies.
+For **Minecraft 26.1.2 on Fabric**; needs Fabric API. Hoppers, pipes and tanks of other mods use the chests and
+tanks through the Fabric transfer API.
 
 ## Blocks and items
 
@@ -56,7 +57,9 @@ The colour of the wool sets all three colours of the result.
 
 ## Configuration
 
-`<world>/serverconfig/enderstorage-server.toml` (or in game through the mod list):
+`<world>/serverconfig/enderstorage-server.toml` (a copy in `defaultconfigs/` is used for new worlds), or in game
+through Mod Menu when it is installed (in a singleplayer world). Changes to the file are picked up while the server
+runs, and clients get the values of the server:
 
 | Setting | Default | What it does |
 | --- | --- | --- |

@@ -4,6 +4,9 @@ import com.magicbanana666.enderstorage.EnderStorage;
 import com.magicbanana666.enderstorage.EnderStorageConfig;
 import com.magicbanana666.enderstorage.storage.ItemStorage;
 import com.magicbanana666.enderstorage.storage.SharedStorage;
+import net.fabricmc.fabric.api.transfer.v1.item.ContainerStorage;
+import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
+import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -15,9 +18,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
-import net.neoforged.neoforge.transfer.ResourceHandler;
-import net.neoforged.neoforge.transfer.item.ItemResource;
-import net.neoforged.neoforge.transfer.item.VanillaContainerWrapper;
 import org.jspecify.annotations.Nullable;
 
 public class EnderChestBlockEntity extends FrequencyBlockEntity {
@@ -29,10 +29,10 @@ public class EnderChestBlockEntity extends FrequencyBlockEntity {
     public float prevOpenness;
     private int openCount;
     private int lastChangeCount = -1;
-    private @Nullable ResourceHandler<ItemResource> itemHandler;
+    private @Nullable Storage<ItemVariant> itemHandler;
 
     public EnderChestBlockEntity(BlockPos pos, BlockState state) {
-        super(EnderStorage.ENDER_CHEST_BE.get(), pos, state);
+        super(EnderStorage.ENDER_CHEST_BE, pos, state);
     }
 
     public @Nullable ItemStorage getStorage() {
@@ -40,11 +40,11 @@ public class EnderChestBlockEntity extends FrequencyBlockEntity {
         return shared != null ? shared.chest(this.frequency) : null;
     }
 
-    public @Nullable ResourceHandler<ItemResource> getItemHandler() {
+    public @Nullable Storage<ItemVariant> getItemHandler() {
         if (this.itemHandler == null) {
             ItemStorage storage = this.getStorage();
             if (storage != null) {
-                this.itemHandler = VanillaContainerWrapper.of(storage);
+                this.itemHandler = ContainerStorage.of(storage, null);
             }
         }
         return this.itemHandler;

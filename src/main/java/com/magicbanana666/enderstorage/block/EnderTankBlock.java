@@ -6,6 +6,9 @@ import java.util.Map;
 import com.magicbanana666.enderstorage.EnderStorage;
 import com.magicbanana666.enderstorage.block.entity.EnderTankBlockEntity;
 import com.mojang.serialization.MapCodec;
+import net.fabricmc.fabric.api.transfer.v1.context.ContainerItemContext;
+import net.fabricmc.fabric.api.transfer.v1.fluid.FluidStorage;
+import net.fabricmc.fabric.api.transfer.v1.fluid.FluidStorageUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionHand;
@@ -24,9 +27,6 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import net.neoforged.neoforge.capabilities.Capabilities;
-import net.neoforged.neoforge.transfer.access.ItemAccess;
-import net.neoforged.neoforge.transfer.fluid.FluidUtil;
 import org.jspecify.annotations.Nullable;
 
 public class EnderTankBlock extends EnderStorageBlock {
@@ -77,11 +77,11 @@ public class EnderTankBlock extends EnderStorageBlock {
         }
         // Buckets and other fluid containers fill or empty the tank. The client has no access to the shared tank,
         // so it only checks that the item holds fluid; the server does the work.
-        if (ItemAccess.forPlayerInteraction(player, hand).getCapability(Capabilities.Fluid.ITEM) == null) {
+        if (FluidStorage.ITEM.find(stack, ContainerItemContext.forPlayerInteraction(player, hand)) == null) {
             return result;
         }
-        if (!level.isClientSide()) {
-            FluidUtil.interactWithFluidHandler(player, hand, level, pos, hit.getDirection(), null);
+        if (!level.isClientSide() && tank.getFluidHandler() != null) {
+            FluidStorageUtil.interactWithFluidStorage(tank.getFluidHandler(), player, hand);
         }
         return InteractionResult.SUCCESS;
     }
@@ -93,6 +93,6 @@ public class EnderTankBlock extends EnderStorageBlock {
 
     @Override
     public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
-        return createTickerHelper(type, EnderStorage.ENDER_TANK_BE.get(), (l, p, s, tank) -> tank.tick());
+        return createTickerHelper(type, EnderStorage.ENDER_TANK_BE, (l, p, s, tank) -> tank.tick());
     }
 }

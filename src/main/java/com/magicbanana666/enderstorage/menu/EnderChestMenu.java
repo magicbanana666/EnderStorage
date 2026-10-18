@@ -4,7 +4,6 @@ import com.magicbanana666.enderstorage.EnderStorage;
 import com.magicbanana666.enderstorage.block.entity.EnderChestBlockEntity;
 import com.magicbanana666.enderstorage.storage.ItemStorage;
 import net.minecraft.core.BlockPos;
-import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.util.Mth;
 import net.minecraft.world.Container;
 import net.minecraft.world.SimpleContainer;
@@ -36,8 +35,8 @@ public class EnderChestMenu extends AbstractContainerMenu {
     private final DataSlot scroll = DataSlot.standalone();
 
     /** Client side: the server sends the number of slots. */
-    public EnderChestMenu(int id, Inventory inventory, RegistryFriendlyByteBuf buf) {
-        this(id, inventory, null, null, buf.readVarInt());
+    public EnderChestMenu(int id, Inventory inventory, int slots) {
+        this(id, inventory, null, null, slots);
     }
 
     public EnderChestMenu(int id, Inventory inventory, ItemStorage storage, @Nullable BlockPos pos) {
@@ -45,7 +44,7 @@ public class EnderChestMenu extends AbstractContainerMenu {
     }
 
     private EnderChestMenu(int id, Inventory inventory, @Nullable ItemStorage storage, @Nullable BlockPos pos, int slots) {
-        super(EnderStorage.ENDER_CHEST_MENU.get(), id);
+        super(EnderStorage.ENDER_CHEST_MENU, id);
         this.storage = storage;
         this.pos = pos;
         this.visibleRows = Mth.clamp(Mth.positiveCeilDiv(slots, COLUMNS), 1, MAX_VISIBLE_ROWS);

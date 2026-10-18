@@ -68,7 +68,7 @@ public class EnderChestBlock extends EnderStorageBlock {
 
     @Override
     public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
-        return createTickerHelper(type, EnderStorage.ENDER_CHEST_BE.get(), (l, p, s, chest) -> chest.tick());
+        return createTickerHelper(type, EnderStorage.ENDER_CHEST_BE, (l, p, s, chest) -> chest.tick());
     }
 
     @Override

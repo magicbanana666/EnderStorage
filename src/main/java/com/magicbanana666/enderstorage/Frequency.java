@@ -54,11 +54,11 @@ public record Frequency(DyeColor left, DyeColor middle, DyeColor right, Optional
     }
 
     public static Frequency get(ItemStack stack) {
-        return stack.getOrDefault(EnderStorage.FREQUENCY.get(), DEFAULT);
+        return stack.getOrDefault(EnderStorage.FREQUENCY, DEFAULT);
     }
 
     public ItemStack applyTo(ItemStack stack) {
-        stack.set(EnderStorage.FREQUENCY.get(), this);
+        stack.set(EnderStorage.FREQUENCY, this);
         return stack;
     }
 

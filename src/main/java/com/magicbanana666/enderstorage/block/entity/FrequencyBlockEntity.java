@@ -63,8 +63,8 @@ public abstract class FrequencyBlockEntity extends BlockEntity {
         return item;
     }
 
+    /** The storage changes with the frequency; subclasses drop what they cached of the old one. */
     protected void onFrequencyChanged() {
-        this.invalidateCapabilities();
     }
 
     /** The shared storage of the world, only on the server. */
@@ -117,17 +117,17 @@ public abstract class FrequencyBlockEntity extends BlockEntity {
     @Override
     protected void applyImplicitComponents(DataComponentGetter components) {
         super.applyImplicitComponents(components);
-        this.frequency = components.getOrDefault(EnderStorage.FREQUENCY.get(), Frequency.DEFAULT);
-        this.lockItem = this.frequency.isLocked() ? components.getOrDefault(EnderStorage.LOCK_ITEM.get(), ItemStack.EMPTY).copy() : ItemStack.EMPTY;
+        this.frequency = components.getOrDefault(EnderStorage.FREQUENCY, Frequency.DEFAULT);
+        this.lockItem = this.frequency.isLocked() ? components.getOrDefault(EnderStorage.LOCK_ITEM, ItemStack.EMPTY).copy() : ItemStack.EMPTY;
     }
 
     @Override
     protected void collectImplicitComponents(DataComponentMap.Builder components) {
         super.collectImplicitComponents(components);
         // In anarchy mode a broken chest loses its owner or team
-        components.set(EnderStorage.FREQUENCY.get(), EnderStorageConfig.anarchyMode() ? this.frequency.withoutLock() : this.frequency);
+        components.set(EnderStorage.FREQUENCY, EnderStorageConfig.anarchyMode() ? this.frequency.withoutLock() : this.frequency);
         if (!EnderStorageConfig.anarchyMode() && this.frequency.isLocked() && !this.lockItem.isEmpty()) {
-            components.set(EnderStorage.LOCK_ITEM.get(), this.lockItem.copy());
+            components.set(EnderStorage.LOCK_ITEM, this.lockItem.copy());
         }
     }
 

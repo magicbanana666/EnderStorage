@@ -110,9 +110,4 @@ public class EnderChestRenderer implements BlockEntityRenderer<EnderChestBlockEn
         pose.popPose();
     }
 
-    @Override
-    public net.minecraft.world.phys.AABB getRenderBoundingBox(EnderChestBlockEntity chest) {
-        return new net.minecraft.world.phys.AABB(chest.getBlockPos()).expandTowards(0, 1, 0);
-    }
-
 }

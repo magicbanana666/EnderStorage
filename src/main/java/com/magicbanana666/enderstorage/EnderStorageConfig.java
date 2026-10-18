@@ -1,103 +1,445 @@
 package com.magicbanana666.enderstorage;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+import com.mojang.logging.LogUtils;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
+import net.fabricmc.fabric.api.networking.v1.PlayerLookup;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.neoforged.neoforge.common.ModConfigSpec;
+import net.minecraft.world.level.storage.LevelResource;
+import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
 
+/**
+ * The server config, in {@code <world>/serverconfig/enderstorage-server.toml} (a copy in {@code defaultconfigs/} is used
+ * for new worlds). It is read when the server starts and again when the file changes, and sent to every client that
+ * joins, so client side checks use the same values.
+ */
 public final class EnderStorageConfig {
 
-    public static final ModConfigSpec SPEC;
+    private static final Logger LOGGER = LogUtils.getLogger();
+    private static final String FILE_NAME = EnderStorage.MOD_ID + "-server.toml";
+    private static final List<Option<?>> OPTIONS = new ArrayList<>();
 
-    private static final ModConfigSpec.ConfigValue<String> PERSONAL_ITEM;
-    private static final ModConfigSpec.ConfigValue<String> TEAM_ITEM;
-    private static final ModConfigSpec.BooleanValue ANARCHY_MODE;
-    private static final ModConfigSpec.BooleanValue VANILLA_SOUNDS;
+    private static final StringOption PERSONAL_ITEM = new StringOption("access", "personalItem", "minecraft:diamond",
+            "The item that locks an ender chest or tank to its owner (right click the lock or valve with it). Use #namespace:tag for a tag.");
+    private static final StringOption TEAM_ITEM = new StringOption("access", "teamItem", "minecraft:emerald",
+            "The item that locks an ender chest or tank to your team (FTB Teams party, or /team). Use #namespace:tag for a tag.");
+    private static final BooleanOption ANARCHY_MODE = new BooleanOption("access", "anarchyMode", false,
+            "Personal and team chests and tanks lose their lock when broken, and anyone can open them.");
+    private static final BooleanOption VANILLA_SOUNDS = new BooleanOption("access", "useVanillaEnderChestSounds", false,
+            "Use the vanilla ender chest sounds instead of the normal chest sounds.");
 
-    private static final ModConfigSpec.ConfigValue<String> SMALL_UPGRADE_ITEM;
-    private static final ModConfigSpec.ConfigValue<String> LARGE_UPGRADE_ITEM;
-    private static final ModConfigSpec.ConfigValue<String> PUMP_ITEM;
+    private static final StringOption SMALL_UPGRADE_ITEM = new StringOption("upgrades", "smallUpgradeItem", "#c:ender_pearls",
+            "Right click a chest or tank with this item for a small capacity upgrade. Use #namespace:tag for a tag.");
+    private static final StringOption LARGE_UPGRADE_ITEM = new StringOption("upgrades", "largeUpgradeItem", "minecraft:ender_eye",
+            "Right click a chest or tank with this item for a large capacity upgrade. Use #namespace:tag for a tag.");
+    private static final StringOption PUMP_ITEM = new StringOption("upgrades", "pumpItem", "minecraft:piston",
+            "Right click a tank with this item to make its valve pump faster. Use #namespace:tag for a tag.");
 
-    private static final ModConfigSpec.IntValue CHEST_START_SLOTS;
-    private static final ModConfigSpec.IntValue CHEST_MAX_SLOTS;
-    private static final ModConfigSpec.IntValue CHEST_SMALL_UPGRADE;
-    private static final ModConfigSpec.IntValue CHEST_LARGE_UPGRADE;
+    private static final IntOption CHEST_START_SLOTS = new IntOption("chest", "startSlots", 27, 1, 270,
+            "Slots of an ender chest frequency before upgrades.");
+    private static final IntOption CHEST_MAX_SLOTS = new IntOption("chest", "maxSlots", 108, 1, 270,
+            "Most slots an ender chest frequency can be upgraded to.");
+    private static final IntOption CHEST_SMALL_UPGRADE = new IntOption("chest", "smallUpgradeSlots", 3, 1, 270,
+            "Slots added by a small upgrade.");
+    private static final IntOption CHEST_LARGE_UPGRADE = new IntOption("chest", "largeUpgradeSlots", 9, 1, 270,
+            "Slots added by a large upgrade.");
 
-    private static final ModConfigSpec.IntValue TANK_BUCKETS;
-    private static final ModConfigSpec.IntValue TANK_MAX_BUCKETS;
-    private static final ModConfigSpec.IntValue TANK_SMALL_UPGRADE;
-    private static final ModConfigSpec.IntValue TANK_LARGE_UPGRADE;
+    private static final IntOption TANK_BUCKETS = new IntOption("tank", "tankBuckets", 16, 1, 4096,
+            "Buckets an ender tank frequency holds before upgrades.");
+    private static final IntOption TANK_MAX_BUCKETS = new IntOption("tank", "maxBuckets", 256, 1, 4096,
+            "Most buckets an ender tank frequency can be upgraded to.");
+    private static final IntOption TANK_SMALL_UPGRADE = new IntOption("tank", "smallUpgradeBuckets", 4, 1, 4096,
+            "Buckets added by a small upgrade.");
+    private static final IntOption TANK_LARGE_UPGRADE = new IntOption("tank", "largeUpgradeBuckets", 16, 1, 4096,
+            "Buckets added by a large upgrade.");
+    private static final IntOption PUMP_BASE_RATE = new IntOption("tank", "pumpBaseRate", 250, 1, 100000,
+            "mB per tick an open valve pushes out without pump upgrades.");
+    private static final IntOption PUMP_UPGRADE_RATE = new IntOption("tank", "pumpUpgradeRate", 1000, 1, 100000,
+            "mB per tick added by each pump upgrade.");
+    private static final IntOption PUMP_MAX_UPGRADES = new IntOption("tank", "pumpMaxUpgrades", 4, 0, 64,
+            "How many pump upgrades a tank can have.");
 
-    private static final ModConfigSpec.IntValue PUMP_BASE_RATE;
-    private static final ModConfigSpec.IntValue PUMP_UPGRADE_RATE;
-    private static final ModConfigSpec.IntValue PUMP_MAX_UPGRADES;
-
-    static {
-        ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
-        builder.push("access");
-        PERSONAL_ITEM = builder.comment("The item that locks an ender chest or tank to its owner (right click the lock or valve with it). Use #namespace:tag for a tag.")
-                .define("personalItem", "minecraft:diamond");
-        TEAM_ITEM = builder.comment("The item that locks an ender chest or tank to your team (FTB Teams party, or /team). Use #namespace:tag for a tag.")
-                .define("teamItem", "minecraft:emerald");
-        ANARCHY_MODE = builder.comment("Personal and team chests and tanks lose their lock when broken, and anyone can open them.")
-                .define("anarchyMode", false);
-        VANILLA_SOUNDS = builder.comment("Use the vanilla ender chest sounds instead of the normal chest sounds.")
-                .define("useVanillaEnderChestSounds", false);
-        builder.pop();
-
-        builder.push("upgrades");
-        SMALL_UPGRADE_ITEM = builder.comment("Right click a chest or tank with this item for a small capacity upgrade. Use #namespace:tag for a tag.")
-                .define("smallUpgradeItem", "#c:ender_pearls");
-        LARGE_UPGRADE_ITEM = builder.comment("Right click a chest or tank with this item for a large capacity upgrade. Use #namespace:tag for a tag.")
-                .define("largeUpgradeItem", "minecraft:ender_eye");
-        PUMP_ITEM = builder.comment("Right click a tank with this item to make its valve pump faster. Use #namespace:tag for a tag.")
-                .define("pumpItem", "minecraft:piston");
-        builder.pop();
-
-        builder.push("chest");
-        CHEST_START_SLOTS = builder.comment("Slots of an ender chest frequency before upgrades.")
-                .defineInRange("startSlots", 27, 1, 270);
-        CHEST_MAX_SLOTS = builder.comment("Most slots an ender chest frequency can be upgraded to.")
-                .defineInRange("maxSlots", 108, 1, 270);
-        CHEST_SMALL_UPGRADE = builder.comment("Slots added by a small upgrade.")
-                .defineInRange("smallUpgradeSlots", 3, 1, 270);
-        CHEST_LARGE_UPGRADE = builder.comment("Slots added by a large upgrade.")
-                .defineInRange("largeUpgradeSlots", 9, 1, 270);
-        builder.pop();
-
-        builder.push("tank");
-        TANK_BUCKETS = builder.comment("Buckets an ender tank frequency holds before upgrades.")
-                .defineInRange("tankBuckets", 16, 1, 4096);
-        TANK_MAX_BUCKETS = builder.comment("Most buckets an ender tank frequency can be upgraded to.")
-                .defineInRange("maxBuckets", 256, 1, 4096);
-        TANK_SMALL_UPGRADE = builder.comment("Buckets added by a small upgrade.")
-                .defineInRange("smallUpgradeBuckets", 4, 1, 4096);
-        TANK_LARGE_UPGRADE = builder.comment("Buckets added by a large upgrade.")
-                .defineInRange("largeUpgradeBuckets", 16, 1, 4096);
-        PUMP_BASE_RATE = builder.comment("mB per tick an open valve pushes out without pump upgrades.")
-                .defineInRange("pumpBaseRate", 250, 1, 100000);
-        PUMP_UPGRADE_RATE = builder.comment("mB per tick added by each pump upgrade.")
-                .defineInRange("pumpUpgradeRate", 1000, 1, 100000);
-        PUMP_MAX_UPGRADES = builder.comment("How many pump upgrades a tank can have.")
-                .defineInRange("pumpMaxUpgrades", 4, 0, 64);
-        builder.pop();
-        SPEC = builder.build();
-    }
+    /** Whether the values come from a config file (on the server) or from the server (on a client). */
+    private static boolean loaded;
+    private static @Nullable Path file;
+    private static long lastModified;
+    private static int watchTicks;
 
     private EnderStorageConfig() {
     }
 
-    private static boolean loaded() {
-        return SPEC.isLoaded();
+    static void init() {
+        PayloadTypeRegistry.clientboundPlay().register(SyncPayload.TYPE, SyncPayload.STREAM_CODEC);
+        ServerLifecycleEvents.SERVER_STARTING.register(EnderStorageConfig::load);
+        ServerLifecycleEvents.SERVER_STOPPED.register(server -> unload());
+        ServerTickEvents.END_SERVER_TICK.register(EnderStorageConfig::watch);
+        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> sync(handler.player));
     }
 
+    private static boolean loaded() {
+        return loaded;
+    }
+
+    // ---- File --------------------------------------------------------------------------------------------------
+
+    private static void load(MinecraftServer server) {
+        Path path = server.getWorldPath(LevelResource.ROOT).resolve("serverconfig").resolve(FILE_NAME);
+        file = path;
+        try {
+            Files.createDirectories(path.getParent());
+            Path defaults = FabricLoader.getInstance().getGameDir().resolve("defaultconfigs").resolve(FILE_NAME);
+            if (!Files.exists(path) && Files.exists(defaults)) {
+                Files.copy(defaults, path);
+            }
+        } catch (IOException e) {
+            LOGGER.warn("Could not create {}", path, e);
+        }
+        read(path);
+        loaded = true;
+    }
+
+    private static void unload() {
+        loaded = false;
+        file = null;
+        OPTIONS.forEach(Option::reset);
+    }
+
+    /** Reads the file; missing or invalid values get their default and the file is written again. */
+    private static void read(Path path) {
+        OPTIONS.forEach(Option::reset);
+        boolean rewrite = true;
+        if (Files.exists(path)) {
+            rewrite = false;
+            Map<String, String> values = new LinkedHashMap<>();
+            try {
+                String section = "";
+                for (String raw : Files.readAllLines(path)) {
+                    String line = raw.strip();
+                    if (line.isEmpty() || line.startsWith("#")) {
+                        continue;
+                    }
+                    if (line.startsWith("[") && line.endsWith("]")) {
+                        section = line.substring(1, line.length() - 1).strip();
+                        continue;
+                    }
+                    int equals = line.indexOf('=');
+                    if (equals > 0) {
+                        values.put(section + "." + line.substring(0, equals).strip(), line.substring(equals + 1).strip());
+                    }
+                }
+            } catch (IOException e) {
+                LOGGER.warn("Could not read {}, using the defaults", path, e);
+            }
+            for (Option<?> option : OPTIONS) {
+                String value = values.get(option.path());
+                if (value == null || !option.parse(value)) {
+                    if (value != null) {
+                        LOGGER.warn("Invalid value {} for {} in {}, using {}", value, option.path(), path.getFileName(), option.asString());
+                    }
+                    option.reset();
+                    rewrite = true;
+                }
+            }
+        }
+        if (rewrite) {
+            write(path);
+        }
+        try {
+            lastModified = Files.getLastModifiedTime(path).toMillis();
+        } catch (IOException e) {
+            lastModified = 0;
+        }
+    }
+
+    private static void write(Path path) {
+        StringBuilder out = new StringBuilder();
+        String section = null;
+        for (Option<?> option : OPTIONS) {
+            if (!option.section.equals(section)) {
+                if (section != null) {
+                    out.append('\n');
+                }
+                section = option.section;
+                out.append('[').append(section).append("]\n");
+            }
+            out.append("\t#").append(option.comment).append('\n');
+            option.extraComment().ifPresent(extra -> out.append("\t#").append(extra).append('\n'));
+            out.append('\t').append(option.key).append(" = ").append(option.asString()).append('\n');
+        }
+        try {
+            Files.writeString(path, out.toString());
+        } catch (IOException e) {
+            LOGGER.warn("Could not write {}", path, e);
+        }
+    }
+
+    /** Reads the file again when it was changed while the server runs, and sends the new values to everyone. */
+    private static void watch(MinecraftServer server) {
+        if (++watchTicks < 40 || file == null) {
+            return;
+        }
+        watchTicks = 0;
+        try {
+            if (Files.exists(file) && Files.getLastModifiedTime(file).toMillis() != lastModified) {
+                LOGGER.info("Reloading {}", file.getFileName());
+                read(file);
+                for (ServerPlayer player : PlayerLookup.all(server)) {
+                    sync(player);
+                }
+            }
+        } catch (IOException e) {
+            LOGGER.warn("Could not check {}", file, e);
+        }
+    }
+
+    // ---- Config screen -----------------------------------------------------------------------------------------
+
+    /** Every option in file order, for the config screen. */
+    public static List<Option<?>> options() {
+        return Collections.unmodifiableList(OPTIONS);
+    }
+
+    /** Whether the config of a running server in this game (singleplayer) can be edited. */
+    public static boolean isEditable() {
+        return file != null;
+    }
+
+    /** Saves the edited values (all valid) and sends them to everyone. */
+    public static void save(MinecraftServer server) {
+        if (file != null) {
+            write(file);
+            read(file);
+            for (ServerPlayer player : PlayerLookup.all(server)) {
+                sync(player);
+            }
+        }
+    }
+
+    // ---- Sync --------------------------------------------------------------------------------------------------
+
+    /** All values, sent to a client when it joins and when the file is reloaded. */
+    public record SyncPayload(List<String> values) implements CustomPacketPayload {
+        public static final Type<SyncPayload> TYPE = new Type<>(EnderStorage.id("config"));
+        public static final StreamCodec<RegistryFriendlyByteBuf, SyncPayload> STREAM_CODEC =
+                ByteBufCodecs.STRING_UTF8.apply(ByteBufCodecs.list()).<RegistryFriendlyByteBuf>cast().map(SyncPayload::new, SyncPayload::values);
+
+        @Override
+        public Type<SyncPayload> type() {
+            return TYPE;
+        }
+    }
+
+    private static void sync(ServerPlayer player) {
+        if (ServerPlayNetworking.canSend(player, SyncPayload.TYPE)) {
+            ServerPlayNetworking.send(player, new SyncPayload(OPTIONS.stream().map(Option::asString).toList()));
+        }
+    }
+
+    /** Client side: uses the values of the server. In singleplayer they are already the same. */
+    public static void receive(SyncPayload payload) {
+        if (file != null) {
+            return;
+        }
+        for (int i = 0; i < OPTIONS.size() && i < payload.values().size(); i++) {
+            if (!OPTIONS.get(i).parse(payload.values().get(i))) {
+                OPTIONS.get(i).reset();
+            }
+        }
+        loaded = true;
+    }
+
+    /** Client side: back to the defaults after leaving a server. */
+    public static void disconnected() {
+        if (file == null) {
+            loaded = false;
+            OPTIONS.forEach(Option::reset);
+        }
+    }
+
+    // ---- Options -----------------------------------------------------------------------------------------------
+
+    /** One config value with its section, key, comment and default. */
+    public abstract static sealed class Option<T> permits StringOption, BooleanOption, IntOption {
+        private final String section;
+        private final String key;
+        private final String comment;
+        private final T defaultValue;
+        protected T value;
+
+        Option(String section, String key, T defaultValue, String comment) {
+            this.section = section;
+            this.key = key;
+            this.comment = comment;
+            this.defaultValue = defaultValue;
+            this.value = defaultValue;
+            OPTIONS.add(this);
+        }
+
+        public String section() {
+            return this.section;
+        }
+
+        public String key() {
+            return this.key;
+        }
+
+        public String path() {
+            return this.section + "." + this.key;
+        }
+
+        public String comment() {
+            return this.comment;
+        }
+
+        public T get() {
+            return this.value;
+        }
+
+        public T defaultValue() {
+            return this.defaultValue;
+        }
+
+        void reset() {
+            this.value = this.defaultValue;
+        }
+
+        java.util.Optional<String> extraComment() {
+            return java.util.Optional.empty();
+        }
+
+        /** The value as it is written in the file. */
+        public abstract String asString();
+
+        /** Sets the value from the file format (strings may also be given without quotes); false when invalid. */
+        public abstract boolean parse(String raw);
+
+        /** Whether {@link #parse} would accept the text, without changing the value. */
+        public boolean isValid(String raw) {
+            T old = this.value;
+            boolean valid = this.parse(raw);
+            this.value = old;
+            return valid;
+        }
+    }
+
+    public static final class StringOption extends Option<String> {
+        StringOption(String section, String key, String defaultValue, String comment) {
+            super(section, key, defaultValue, comment);
+        }
+
+        @Override
+        public String asString() {
+            return "\"" + this.value.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
+        }
+
+        @Override
+        public boolean parse(String raw) {
+            String text = raw.strip();
+            if (text.length() >= 2 && text.startsWith("\"") && text.endsWith("\"")) {
+                text = text.substring(1, text.length() - 1).replace("\\\"", "\"").replace("\\\\", "\\");
+            } else if (text.contains("\"") || text.isEmpty()) {
+                return false;
+            }
+            this.value = text;
+            return true;
+        }
+    }
+
+    public static final class BooleanOption extends Option<Boolean> {
+        BooleanOption(String section, String key, boolean defaultValue, String comment) {
+            super(section, key, defaultValue, comment);
+        }
+
+        @Override
+        public String asString() {
+            return this.value.toString();
+        }
+
+        @Override
+        public boolean parse(String raw) {
+            String text = raw.strip();
+            if (text.equals("true") || text.equals("false")) {
+                this.value = Boolean.parseBoolean(text);
+                return true;
+            }
+            return false;
+        }
+    }
+
+    public static final class IntOption extends Option<Integer> {
+        private final int min;
+        private final int max;
+
+        IntOption(String section, String key, int defaultValue, int min, int max, String comment) {
+            super(section, key, defaultValue, comment);
+            this.min = min;
+            this.max = max;
+        }
+
+        public int min() {
+            return this.min;
+        }
+
+        public int max() {
+            return this.max;
+        }
+
+        @Override
+        java.util.Optional<String> extraComment() {
+            return java.util.Optional.of("Range: " + this.min + " ~ " + this.max);
+        }
+
+        @Override
+        public String asString() {
+            return this.value.toString();
+        }
+
+        @Override
+        public boolean parse(String raw) {
+            try {
+                int parsed = Integer.parseInt(raw.strip());
+                if (parsed < this.min || parsed > this.max) {
+                    return false;
+                }
+                this.value = parsed;
+                return true;
+            } catch (NumberFormatException e) {
+                return false;
+            }
+        }
+    }
+
+    // ---- Values ------------------------------------------------------------------------------------------------
+
     /** Whether the stack is the configured item, or in the configured tag when the value starts with #. */
-    private static boolean matches(ItemStack stack, ModConfigSpec.ConfigValue<String> value, String fallback) {
+    private static boolean matches(ItemStack stack, Option<String> value, String fallback) {
         if (stack.isEmpty()) {
             return false;
         }
@@ -110,7 +452,7 @@ public final class EnderStorageConfig {
     }
 
     /** One item of the configured value, for giving a lock or upgrade item back. */
-    private static ItemStack firstItem(ModConfigSpec.ConfigValue<String> value, String fallback, Item fallbackItem) {
+    private static ItemStack firstItem(Option<String> value, String fallback, Item fallbackItem) {
         String name = loaded() ? value.get() : fallback;
         if (name.startsWith("#")) {
             Identifier id = Identifier.tryParse(name.substring(1));

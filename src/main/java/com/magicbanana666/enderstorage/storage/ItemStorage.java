@@ -6,15 +6,17 @@ import java.util.List;
 import com.magicbanana666.enderstorage.EnderStorageConfig;
 import com.magicbanana666.enderstorage.Frequency;
 import com.magicbanana666.enderstorage.menu.EnderChestMenu;
+import net.fabricmc.fabric.api.menu.v1.ExtendedMenuProvider;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.NonNullList;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.Container;
 import net.minecraft.world.ContainerHelper;
-import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.entity.ContainerUser;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
 import org.jspecify.annotations.Nullable;
 
@@ -102,8 +104,22 @@ public class ItemStorage implements Container {
         this.resize();
         this.restoreOverflow();
         this.giveOverflow(player);
-        player.openMenu(new SimpleMenuProvider((id, inventory, p) -> new EnderChestMenu(id, inventory, this, pos), title),
-                buf -> buf.writeVarInt(this.items.size()));
+        player.openMenu(new ExtendedMenuProvider<Integer>() {
+            @Override
+            public Integer getScreenOpeningData(ServerPlayer p) {
+                return ItemStorage.this.items.size();
+            }
+
+            @Override
+            public Component getDisplayName() {
+                return title;
+            }
+
+            @Override
+            public AbstractContainerMenu createMenu(int id, Inventory inventory, Player p) {
+                return new EnderChestMenu(id, inventory, ItemStorage.this, pos);
+            }
+        });
     }
 
     private void restoreOverflow() {

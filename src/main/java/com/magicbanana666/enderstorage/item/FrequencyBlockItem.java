@@ -22,7 +22,7 @@ public class FrequencyBlockItem extends BlockItem {
     @Override
     public void appendHoverText(ItemStack stack, TooltipContext context, TooltipDisplay display, Consumer<Component> tooltip, TooltipFlag flag) {
         addFrequencyTooltip(Frequency.get(stack), tooltip);
-        int pumps = stack.getOrDefault(EnderStorage.PUMP_UPGRADES.get(), 0);
+        int pumps = stack.getOrDefault(EnderStorage.PUMP_UPGRADES, 0);
         if (pumps > 0) {
             tooltip.accept(Component.translatable("enderstorage.pump_upgrades", pumps).withStyle(ChatFormatting.GRAY));
         }

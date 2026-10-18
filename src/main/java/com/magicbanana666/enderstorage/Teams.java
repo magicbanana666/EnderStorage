@@ -4,10 +4,10 @@ import java.util.Optional;
 import java.util.UUID;
 
 import com.mojang.logging.LogUtils;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.scores.PlayerTeam;
-import net.neoforged.fml.ModList;
 import org.slf4j.Logger;
 
 /**
@@ -44,7 +44,7 @@ public final class Teams {
     }
 
     private static Optional<TeamInfo> ftbTeam(UUID player) {
-        if (ftbFailed || !ModList.get().isLoaded("ftbteams")) {
+        if (ftbFailed || !FabricLoader.getInstance().isModLoaded("ftbteams")) {
             return Optional.empty();
         }
         try {

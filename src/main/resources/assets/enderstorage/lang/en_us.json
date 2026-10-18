@@ -25,5 +25,7 @@
   "enderstorage.gui.inverted": "(inverted)",
   "enderstorage.gui.public": "Public",
   "enderstorage.gui.tank_upgrade": "Ender pearl or eye of ender: more buckets. Piston: faster pump.",
-  "container.enderstorage.ender_chest": "Ender Chest"
+  "container.enderstorage.ender_chest": "Ender Chest",
+  "enderstorage.config.title": "EnderStorage Config",
+  "enderstorage.config.world_only": "These settings belong to a world: open a singleplayer world to change them."
 }

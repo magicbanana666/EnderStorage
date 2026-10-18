@@ -6,6 +6,7 @@ import com.magicbanana666.enderstorage.EnderStorageConfig;
 import com.magicbanana666.enderstorage.Frequency;
 import com.magicbanana666.enderstorage.Teams;
 import com.magicbanana666.enderstorage.block.entity.FrequencyBlockEntity;
+import com.magicbanana666.enderstorage.recipe.RecolourRecipe;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
@@ -111,7 +112,7 @@ public abstract class EnderStorageBlock extends BaseEntityBlock {
         Frequency frequency = storage.getFrequency();
 
         if (part >= 1 && part <= 3) {
-            DyeColor dye = DyeColor.getColor(stack);
+            DyeColor dye = RecolourRecipe.dyeColour(stack);
             if (dye != null && frequency.colour(part - 1) != dye) {
                 if (!frequency.mayUse(player)) {
                     return this.denied(player, frequency);
@@ -211,7 +212,7 @@ public abstract class EnderStorageBlock extends BaseEntityBlock {
         return stack;
     }
 
-    @Override
+    /** Light from the block entity (the fluid in a tank); used by {@code BlockLightEngineMixin}. */
     public int getLightEmission(BlockState state, BlockGetter level, BlockPos pos) {
         return level.getBlockEntity(pos) instanceof FrequencyBlockEntity storage ? storage.lightLevel() : 0;
     }

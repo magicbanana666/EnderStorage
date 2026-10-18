@@ -8,6 +8,8 @@ import com.magicbanana666.enderstorage.EnderStorageConfig;
 import com.magicbanana666.enderstorage.Frequency;
 import com.magicbanana666.enderstorage.block.entity.EnderTankBlockEntity;
 import com.magicbanana666.enderstorage.menu.EnderTankMenu;
+import com.magicbanana666.enderstorage.storage.TankFluid;
+import net.fabricmc.fabric.api.transfer.v1.client.fluid.FluidVariantRendering;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -18,7 +20,6 @@ import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.Inventory;
-import net.neoforged.neoforge.fluids.FluidStack;
 import org.jspecify.annotations.Nullable;
 
 /** Shows the fluid in an ender tank, its capacity, the pump speed, the valve and who may use it. */
@@ -66,12 +67,12 @@ public class EnderTankScreen extends AbstractContainerScreen<EnderTankMenu> {
         if (tank == null) {
             return;
         }
-        FluidStack fluid = tank.getFluid();
+        TankFluid fluid = tank.getFluid();
         if (!fluid.isEmpty()) {
-            int height = Math.max(1, Math.round(GAUGE_HEIGHT * Math.min(1F, fluid.getAmount() / (float) tank.capacity())));
-            FluidModel model = Minecraft.getInstance().getModelManager().getFluidStateModelSet().get(fluid.getFluid().defaultFluidState());
+            int height = Math.max(1, Math.round(GAUGE_HEIGHT * fluid.fill(tank.capacity())));
+            FluidModel model = Minecraft.getInstance().getModelManager().getFluidStateModelSet().get(fluid.variant().getFluid().defaultFluidState());
             TextureAtlasSprite sprite = model.stillMaterial().sprite();
-            int colour = model.fluidTintSource() != null ? model.fluidTintSource().colorAsStack(fluid) | 0xFF000000 : -1;
+            int colour = FluidVariantRendering.getColor(fluid.variant()) | 0xFF000000;
             graphics.enableScissor(gx, gy + GAUGE_HEIGHT - height, gx + GAUGE_WIDTH, gy + GAUGE_HEIGHT);
             for (int ty = GAUGE_HEIGHT - 16; ty > -16; ty -= 16) {
                 for (int tx = 0; tx < GAUGE_WIDTH; tx += 16) {
@@ -94,11 +95,11 @@ public class EnderTankScreen extends AbstractContainerScreen<EnderTankMenu> {
         if (tank == null) {
             return;
         }
-        FluidStack fluid = tank.getFluid();
+        TankFluid fluid = tank.getFluid();
         int line = GAUGE_Y;
         graphics.text(this.font, fluid.isEmpty() ? Component.translatable("enderstorage.gui.empty") : fluid.getHoverName(), TEXT_X, line, TEXT_COLOUR, false);
         line += 11;
-        graphics.text(this.font, Component.translatable("enderstorage.gui.amount", number(fluid.getAmount()), number(tank.capacity())), TEXT_X, line, TEXT_COLOUR, false);
+        graphics.text(this.font, Component.translatable("enderstorage.gui.amount", number(fluid.mb()), number(tank.capacity())), TEXT_X, line, TEXT_COLOUR, false);
         line += 11;
         graphics.text(this.font, Component.translatable("enderstorage.gui.pump", tank.pumpUpgrades(), EnderStorageConfig.pumpMaxUpgrades(), number(tank.pumpRate())), TEXT_X, line, TEXT_COLOUR, false);
         line += 11;
@@ -122,10 +123,10 @@ public class EnderTankScreen extends AbstractContainerScreen<EnderTankMenu> {
         int gx = this.leftPos + GAUGE_X;
         int gy = this.topPos + GAUGE_Y;
         if (tank != null && mouseX >= gx && mouseX < gx + GAUGE_WIDTH && mouseY >= gy && mouseY < gy + GAUGE_HEIGHT) {
-            FluidStack fluid = tank.getFluid();
+            TankFluid fluid = tank.getFluid();
             graphics.setComponentTooltipForNextFrame(this.font, List.of(
                     fluid.isEmpty() ? Component.translatable("enderstorage.gui.empty") : fluid.getHoverName(),
-                    Component.translatable("enderstorage.gui.amount", number(fluid.getAmount()), number(tank.capacity())).withStyle(ChatFormatting.GRAY)), mouseX, mouseY);
+                    Component.translatable("enderstorage.gui.amount", number(fluid.mb()), number(tank.capacity())).withStyle(ChatFormatting.GRAY)), mouseX, mouseY);
         }
     }
 }

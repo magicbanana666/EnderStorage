@@ -14,7 +14,6 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.saveddata.SavedDataType;
-import net.neoforged.neoforge.fluids.FluidStack;
 
 /** All ender chest inventories and ender tanks of a world, by frequency. Saved with the world. */
 public class SharedStorage extends SavedData {
@@ -34,10 +33,10 @@ public class SharedStorage extends SavedData {
         ).apply(i, ItemEntry::new));
     }
 
-    private record FluidEntry(Frequency frequency, FluidStack fluid, int bonusCapacity) {
+    private record FluidEntry(Frequency frequency, TankFluid fluid, int bonusCapacity) {
         static final Codec<FluidEntry> CODEC = RecordCodecBuilder.create(i -> i.group(
                 Frequency.CODEC.fieldOf("frequency").forGetter(FluidEntry::frequency),
-                FluidStack.OPTIONAL_CODEC.fieldOf("fluid").forGetter(FluidEntry::fluid),
+                TankFluid.CODEC.fieldOf("fluid").forGetter(FluidEntry::fluid),
                 Codec.INT.optionalFieldOf("bonus_capacity", 0).forGetter(FluidEntry::bonusCapacity)
         ).apply(i, FluidEntry::new));
     }
@@ -48,7 +47,7 @@ public class SharedStorage extends SavedData {
     ).apply(i, SharedStorage::new));
 
     public static final SavedDataType<SharedStorage> TYPE = new SavedDataType<>(
-            Identifier.fromNamespaceAndPath(EnderStorage.MOD_ID, "shared_storage"), SharedStorage::new, CODEC);
+            Identifier.fromNamespaceAndPath(EnderStorage.MOD_ID, "shared_storage"), SharedStorage::new, CODEC, null);
 
     private final Map<String, ItemStorage> chests = new HashMap<>();
     private final Map<String, FluidStorage> tanks = new HashMap<>();

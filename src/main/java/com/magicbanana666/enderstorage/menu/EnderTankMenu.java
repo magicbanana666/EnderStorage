@@ -3,7 +3,6 @@ package com.magicbanana666.enderstorage.menu;
 import com.magicbanana666.enderstorage.EnderStorage;
 import com.magicbanana666.enderstorage.block.entity.EnderTankBlockEntity;
 import net.minecraft.core.BlockPos;
-import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -15,12 +14,13 @@ public class EnderTankMenu extends AbstractContainerMenu {
 
     private final BlockPos pos;
 
-    public EnderTankMenu(int id, Inventory inventory, RegistryFriendlyByteBuf buf) {
-        this(id, buf.readBlockPos());
+    /** Client side: the server sends the position of the tank. */
+    public EnderTankMenu(int id, Inventory inventory, BlockPos pos) {
+        this(id, pos);
     }
 
     public EnderTankMenu(int id, BlockPos pos) {
-        super(EnderStorage.ENDER_TANK_MENU.get(), id);
+        super(EnderStorage.ENDER_TANK_MENU, id);
         this.pos = pos;
     }
 

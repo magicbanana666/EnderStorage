@@ -5,8 +5,10 @@ import com.magicbanana666.enderstorage.EnderStorageConfig;
 import com.magicbanana666.enderstorage.Frequency;
 import com.magicbanana666.enderstorage.block.EnderStorageBlock;
 import com.magicbanana666.enderstorage.block.entity.EnderTankBlockEntity;
+import com.magicbanana666.enderstorage.storage.TankFluid;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
+import net.fabricmc.fabric.api.transfer.v1.client.fluid.FluidVariantRendering;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.block.FluidModel;
@@ -28,9 +30,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.fluids.FluidStack;
 import org.jspecify.annotations.Nullable;
 
 /** Draws the ender tank: the model, the turning valve, the colour buttons, the fluid inside and the floating pearl. */
@@ -43,7 +43,7 @@ public class EnderTankRenderer implements BlockEntityRenderer<EnderTankBlockEnti
         public Direction facing = Direction.SOUTH;
         public Frequency frequency = Frequency.DEFAULT;
         public float valveAngle;
-        public FluidStack fluid = FluidStack.EMPTY;
+        public TankFluid fluid = TankFluid.EMPTY;
         public int capacity = EnderStorageConfig.tankCapacity();
         public float time;
         public final ItemStackRenderState pearl = new ItemStackRenderState();
@@ -64,7 +64,7 @@ public class EnderTankRenderer implements BlockEntityRenderer<EnderTankBlockEnti
         state.facing = tank.getBlockState().getValue(EnderStorageBlock.FACING);
         state.frequency = tank.getFrequency();
         state.valveAngle = Mth.lerp(partialTick, tank.prevValveAngle, tank.valveAngle);
-        state.fluid = tank.getFluid().copy();
+        state.fluid = tank.getFluid();
         state.capacity = tank.capacity();
         state.time = (tank.getLevel() != null ? tank.getLevel().getGameTime() : 0) + partialTick + tank.getBlockPos().hashCode() % 100;
         this.itemModelResolver.updateForTopItem(state.pearl, new ItemStack(Items.ENDER_PEARL), ItemDisplayContext.GROUND, tank.getLevel(), null, 0);
@@ -111,16 +111,16 @@ public class EnderTankRenderer implements BlockEntityRenderer<EnderTankBlockEnti
         pose.popPose();
     }
 
-    private static void drawFluid(PoseStack pose, SubmitNodeCollector collector, FluidStack fluid, int capacity, int light) {
-        FluidModel model = Minecraft.getInstance().getModelManager().getFluidStateModelSet().get(fluid.getFluid().defaultFluidState());
+    private static void drawFluid(PoseStack pose, SubmitNodeCollector collector, TankFluid fluid, int capacity, int light) {
+        FluidModel model = Minecraft.getInstance().getModelManager().getFluidStateModelSet().get(fluid.variant().getFluid().defaultFluidState());
         TextureAtlasSprite sprite = model.stillMaterial().sprite();
-        int colour = model.fluidTintSource() != null ? model.fluidTintSource().colorAsStack(fluid) : -1;
-        float fill = Math.min(1F, fluid.getAmount() / (float) capacity);
+        int colour = FluidVariantRendering.getColor(fluid.variant()) | 0xFF000000;
+        float fill = fluid.fill(capacity);
         float min = -0.28F;
         float max = 0.28F;
         float bottom = 0.12F;
         float top = 0.121F + 0.63F * fill;
-        int fluidLight = Math.max(light, fluid.getFluidType().getLightLevel(fluid) << 4);
+        int fluidLight = Math.max(light, fluid.lightLevel() << 4);
         collector.submitCustomGeometry(pose, RenderTypes.entityTranslucent(TextureAtlas.LOCATION_BLOCKS), (p, c) -> {
             float u0 = sprite.getU0();
             float u1 = sprite.getU1();
@@ -145,10 +145,5 @@ public class EnderTankRenderer implements BlockEntityRenderer<EnderTankBlockEnti
         c.addVertex(p, bx, by, bz).setColor(colour).setUv(u0, v1).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(p, nx, ny, nz);
         c.addVertex(p, cx, cy, cz).setColor(colour).setUv(u1, v1).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(p, nx, ny, nz);
         c.addVertex(p, dx, dy, dz).setColor(colour).setUv(u1, v0).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(p, nx, ny, nz);
-    }
-
-    @Override
-    public AABB getRenderBoundingBox(EnderTankBlockEntity tank) {
-        return new AABB(tank.getBlockPos()).expandTowards(0, 0.5, 0);
     }
 }

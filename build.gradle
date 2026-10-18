@@ -1,60 +1,82 @@
 plugins {
-    id 'java-library'
-    id 'net.neoforged.moddev' version '2.0.148'
+    // 26.x is unobfuscated: the non-remapping Loom plugin, no `mappings` dependency
+    id 'net.fabricmc.fabric-loom' version "${loom_version}"
 }
 
-version = "${minecraft_version}-${mod_version}"
+// -Ptarget=<mc> overrides the version block of gradle.properties with versions/<mc>.properties
+def target = providers.gradleProperty('target').orNull
+def mc = [:]
+['minecraft_version', 'loader_version', 'fabric_api_version', 'minecraft_dep'].each { mc[it] = project.property(it).toString() }
+if (target) {
+    def f = file("versions/${target}.properties")
+    if (!f.exists()) throw new GradleException("No versions/${target}.properties")
+    def p = new Properties()
+    f.withInputStream { p.load(it) }
+    p.each { k, v -> mc[k.toString()] = v.toString() }
+}
+
+version = "${mc.minecraft_version}-${mod_version}"
 group = mod_group
-base.archivesName = mod_name
+base.archivesName = "${mod_name}-FABRIC"
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(25)
 
-// Keep build output out of OneDrive (it locks files while syncing)
-layout.buildDirectory = file("${System.getProperty('user.home')}/.gradle-builds/${project.name}")
+// Keep build output out of OneDrive (it locks files while syncing): ~/.gradle-builds/<project-name>[-<target>]
+def buildRoot = "${System.getProperty('user.home')}/.gradle-builds/${project.name}${target ? '-' + target : ''}"
+layout.buildDirectory = file(buildRoot)
+
+loom {
+    splitEnvironmentSourceSets()
+    accessWidenerPath = file("src/main/resources/${mod_id}.accesswidener")
+    mods {
+        "${mod_id}" {
+            sourceSet sourceSets.main
+            sourceSet sourceSets.client
+        }
+    }
+    runs {
+        configureEach {
+            runDir = project.relativePath(file("${buildRoot}/run"))
+        }
+        client {
+            // -Pquickplay=<world> loads straight into a singleplayer world (automated smoke tests)
+            if (project.hasProperty('quickplay')) {
+                programArgs '--quickPlaySingleplayer', project.property('quickplay').toString()
+            }
+        }
+        server {
+            programArgs '--nogui'
+        }
+    }
+}
+
+repositories {
+    // Mod Menu: optional, only for the config screen entrypoint
+    maven { name = 'TerraformersMC'; url = 'https://maven.terraformersmc.com/releases/' }
+}
 
 dependencies {
+    minecraft "com.mojang:minecraft:${mc.minecraft_version}"
+    implementation "net.fabricmc:fabric-loader:${mc.loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${mc.fabric_api_version}"
+    compileOnly "com.terraformersmc:modmenu:${modmenu_version}"
+
     // -PextraMods=<jar>;<jar>: other mod jars to test compatibility with in the dev client
     if (project.hasProperty('extraMods')) {
         runtimeOnly files(project.property('extraMods').toString().split(';'))
     }
 }
 
-neoForge {
-    version = neoforge_version
-
-    mods {
-        "${mod_id}" {
-            sourceSet(sourceSets.main)
-        }
-    }
-
-    runs {
-        configureEach {
-            gameDirectory = file("${System.getProperty('user.home')}/.gradle-builds/${project.name}/run")
-            logLevel = org.slf4j.event.Level.INFO
-        }
-        client {
-            client()
-            // -Pquickplay=<world> loads straight into a singleplayer world (automated smoke tests)
-            if (project.hasProperty('quickplay')) {
-                programArguments.addAll('--quickPlaySingleplayer', project.property('quickplay').toString())
-            }
-        }
-        server {
-            server()
-            programArgument '--nogui'
-        }
-    }
-}
-
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
+    options.release = 25
 }
 
 processResources {
-    def props = [mod_id: mod_id, mod_display_name: mod_display_name, mod_version: mod_version, minecraft_version: minecraft_version, neoforge_version: neoforge_version]
+    def props = [mod_id: mod_id, mod_display_name: mod_display_name, mod_version: mod_version,
+                 loader_version: mc.loader_version, minecraft_dep: mc.minecraft_dep]
     inputs.properties props
-    filesMatching('META-INF/neoforge.mods.toml') {
+    filesMatching('fabric.mod.json') {
         expand props
     }
 }

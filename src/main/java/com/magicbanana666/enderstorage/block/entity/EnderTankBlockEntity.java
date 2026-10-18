@@ -5,6 +5,11 @@ import com.magicbanana666.enderstorage.EnderStorageConfig;
 import com.magicbanana666.enderstorage.menu.EnderTankMenu;
 import com.magicbanana666.enderstorage.storage.FluidStorage;
 import com.magicbanana666.enderstorage.storage.SharedStorage;
+import com.magicbanana666.enderstorage.storage.TankFluid;
+import net.fabricmc.fabric.api.menu.v1.ExtendedMenuProvider;
+import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
+import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
+import net.fabricmc.fabric.api.transfer.v1.storage.StorageUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponentGetter;
@@ -15,17 +20,13 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.SimpleMenuProvider;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
-import net.neoforged.neoforge.capabilities.Capabilities;
-import net.neoforged.neoforge.fluids.FluidStack;
-import net.neoforged.neoforge.transfer.ResourceHandler;
-import net.neoforged.neoforge.transfer.ResourceHandlerUtil;
-import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -40,7 +41,7 @@ public class EnderTankBlockEntity extends FrequencyBlockEntity {
     private boolean pressure;
     private int pumpUpgrades;
     /** On the client: the fluid and capacity of the tank, and the valve angle in degrees. */
-    private FluidStack clientFluid = FluidStack.EMPTY;
+    private TankFluid clientFluid = TankFluid.EMPTY;
     private int clientCapacity = EnderStorageConfig.tankCapacity();
     public float valveAngle = 90F;
     public float prevValveAngle = 90F;
@@ -49,7 +50,7 @@ public class EnderTankBlockEntity extends FrequencyBlockEntity {
     private int lastLight;
 
     public EnderTankBlockEntity(BlockPos pos, BlockState state) {
-        super(EnderStorage.ENDER_TANK_BE.get(), pos, state);
+        super(EnderStorage.ENDER_TANK_BE, pos, state);
     }
 
     public @Nullable FluidStorage getFluidHandler() {
@@ -62,12 +63,12 @@ public class EnderTankBlockEntity extends FrequencyBlockEntity {
     }
 
     /** The fluid to show: the real one on the server, the synced one on the client. */
-    public FluidStack getFluid() {
+    public TankFluid getFluid() {
         if (this.isClient()) {
             return this.clientFluid;
         }
         FluidStorage storage = this.getFluidHandler();
-        return storage != null ? storage.getFluid() : FluidStack.EMPTY;
+        return storage != null ? storage.getFluid() : TankFluid.EMPTY;
     }
 
     /** Capacity in mB: the real one on the server, the synced one on the client. */
@@ -133,7 +134,7 @@ public class EnderTankBlockEntity extends FrequencyBlockEntity {
 
     /** Pushes up to the pump rate per tick into the blocks around the tank. */
     private void pushFluid(FluidStorage source) {
-        int budget = this.pumpRate();
+        long budget = this.pumpRate() * TankFluid.DROPLETS_PER_MB;
         for (Direction side : Direction.values()) {
             if (budget <= 0 || source.getFluid().isEmpty()) {
                 return;
@@ -143,9 +144,9 @@ public class EnderTankBlockEntity extends FrequencyBlockEntity {
             if (this.level.getBlockEntity(pos) instanceof EnderTankBlockEntity tank && tank.getFrequency().key().equals(this.frequency.key())) {
                 continue;
             }
-            ResourceHandler<FluidResource> target = this.level.getCapability(Capabilities.Fluid.BLOCK, pos, side.getOpposite());
+            Storage<FluidVariant> target = net.fabricmc.fabric.api.transfer.v1.fluid.FluidStorage.SIDED.find(this.level, pos, side.getOpposite());
             if (target != null && target != source) {
-                budget -= ResourceHandlerUtil.move(source, target, resource -> true, budget, null);
+                budget -= StorageUtil.move(source, target, resource -> true, budget, null);
             }
         }
     }
@@ -170,8 +171,22 @@ public class EnderTankBlockEntity extends FrequencyBlockEntity {
         }
         if (player instanceof ServerPlayer serverPlayer) {
             this.sync();
-            serverPlayer.openMenu(new SimpleMenuProvider((id, inventory, p) -> new EnderTankMenu(id, this.worldPosition),
-                    Component.translatable(this.getBlockState().getBlock().getDescriptionId())), buf -> buf.writeBlockPos(this.worldPosition));
+            serverPlayer.openMenu(new ExtendedMenuProvider<BlockPos>() {
+                @Override
+                public BlockPos getScreenOpeningData(ServerPlayer p) {
+                    return EnderTankBlockEntity.this.worldPosition;
+                }
+
+                @Override
+                public Component getDisplayName() {
+                    return Component.translatable(EnderTankBlockEntity.this.getBlockState().getBlock().getDescriptionId());
+                }
+
+                @Override
+                public AbstractContainerMenu createMenu(int id, Inventory inventory, Player p) {
+                    return new EnderTankMenu(id, EnderTankBlockEntity.this.worldPosition);
+                }
+            });
         }
         return InteractionResult.SUCCESS;
     }
@@ -208,33 +223,33 @@ public class EnderTankBlockEntity extends FrequencyBlockEntity {
 
     @Override
     public int comparatorOutput() {
-        FluidStack fluid = this.getFluid();
+        TankFluid fluid = this.getFluid();
         if (fluid.isEmpty()) {
             return 0;
         }
-        return 1 + Mth.floor(14F * Math.min(1F, fluid.getAmount() / (float) this.capacity()));
+        return 1 + Mth.floor(14F * fluid.fill(this.capacity()));
     }
 
     @Override
     public int lightLevel() {
-        FluidStack fluid = this.getFluid();
+        TankFluid fluid = this.getFluid();
         if (fluid.isEmpty()) {
             return 0;
         }
-        return Math.round(fluid.getFluidType().getLightLevel(fluid) * Math.min(1F, fluid.getAmount() / (float) this.capacity()));
+        return Math.round(fluid.lightLevel() * fluid.fill(this.capacity()));
     }
 
     @Override
     protected void applyImplicitComponents(DataComponentGetter components) {
         super.applyImplicitComponents(components);
-        this.pumpUpgrades = components.getOrDefault(EnderStorage.PUMP_UPGRADES.get(), 0);
+        this.pumpUpgrades = components.getOrDefault(EnderStorage.PUMP_UPGRADES, 0);
     }
 
     @Override
     protected void collectImplicitComponents(DataComponentMap.Builder components) {
         super.collectImplicitComponents(components);
         if (this.pumpUpgrades > 0) {
-            components.set(EnderStorage.PUMP_UPGRADES.get(), this.pumpUpgrades);
+            components.set(EnderStorage.PUMP_UPGRADES, this.pumpUpgrades);
         }
     }
 
@@ -251,7 +266,7 @@ public class EnderTankBlockEntity extends FrequencyBlockEntity {
         output.putBoolean("Pressure", this.pressure);
         output.putInt("PumpUpgrades", this.pumpUpgrades);
         // Only for the client (the real fluid is in the shared storage)
-        output.store("Fluid", FluidStack.OPTIONAL_CODEC, this.getFluid());
+        output.store("Fluid", TankFluid.CODEC, this.getFluid());
         output.putInt("Capacity", this.capacity());
     }
 
@@ -261,7 +276,7 @@ public class EnderTankBlockEntity extends FrequencyBlockEntity {
         this.invertRedstone = input.getBooleanOr("InvertRedstone", false);
         this.pressure = input.getBooleanOr("Pressure", false);
         this.pumpUpgrades = input.getIntOr("PumpUpgrades", 0);
-        this.clientFluid = input.read("Fluid", FluidStack.OPTIONAL_CODEC).orElse(FluidStack.EMPTY);
+        this.clientFluid = input.read("Fluid", TankFluid.CODEC).orElse(TankFluid.EMPTY);
         this.clientCapacity = input.getIntOr("Capacity", EnderStorageConfig.tankCapacity());
         if (this.level != null && this.level.isClientSide()) {
             this.updateLight();

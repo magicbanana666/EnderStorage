@@ -3,9 +3,13 @@ package com.magicbanana666.enderstorage.recipe;
 import com.magicbanana666.enderstorage.Frequency;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.resources.Identifier;
+import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.ItemStackTemplate;
@@ -66,7 +70,7 @@ public class RecolourRecipe extends CustomRecipe {
                 if (stack.isEmpty() || (x == targetX && y == targetY)) {
                     continue;
                 }
-                DyeColor dye = DyeColor.getColor(stack);
+                DyeColor dye = dyeColour(stack);
                 int button = x - targetX + 1;
                 if (dye == null || y != targetY - 1 || button < 0 || button > 2) {
                     return null;
@@ -105,5 +109,19 @@ public class RecolourRecipe extends CustomRecipe {
             return null;
         }
         return DyeColor.byName(path.substring(0, path.length() - "_wool".length()), null);
+    }
+
+    /** The colour of a dye: the dye component of vanilla dyes, or a c:dyes/<colour> tag. */
+    public static @Nullable DyeColor dyeColour(ItemStack stack) {
+        DyeColor colour = stack.get(DataComponents.DYE);
+        if (colour != null) {
+            return colour;
+        }
+        for (DyeColor dye : DyeColor.values()) {
+            if (stack.is(TagKey.create(Registries.ITEM, Identifier.fromNamespaceAndPath("c", "dyes/" + dye.getSerializedName())))) {
+                return dye;
+            }
+        }
+        return null;
     }
 }
