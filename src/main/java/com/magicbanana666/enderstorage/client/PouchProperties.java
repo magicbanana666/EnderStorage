@@ -5,6 +5,7 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.item.properties.conditional.ConditionalItemModelProperty;
 import net.minecraft.client.renderer.item.properties.select.SelectItemModelProperty;
@@ -44,11 +45,12 @@ public final class PouchProperties {
         @Override
         public boolean get(ItemStack stack, @Nullable ClientLevel level, @Nullable LivingEntity entity, int seed, ItemDisplayContext context) {
             Minecraft minecraft = Minecraft.getInstance();
-            if (minecraft.player == null || entity != minecraft.player || minecraft.screen == null) {
+            Screen screen = minecraft.gui.screen();
+            if (minecraft.player == null || entity != minecraft.player || screen == null) {
                 return false;
             }
             AbstractContainerMenu menu = minecraft.player.containerMenu;
-            return menu != minecraft.player.inventoryMenu && minecraft.screen.getTitle().equals(stack.getHoverName());
+            return menu != minecraft.player.inventoryMenu && screen.getTitle().equals(stack.getHoverName());
         }
 
         @Override
